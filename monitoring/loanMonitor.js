@@ -65,24 +65,29 @@ async function getOraclePrice(priceFeedContract) {
 // Core loan description
 // -----------------------------
 
-async function describeLoanPosition(provider, chainId, protocol, row) {
+async function describeLoanPosition(provider, chainId, protocol, row, options = {}) {
+  const { verbose = process.env.MONITOR_VERBOSE === '1' } = options;
   const { contract, owner, troveId } = row;
 
-  console.log('========================================');
-  console.log(`LOAN POSITION (${protocol})`);
-  console.log('----------------------------------------');
-  console.log(`Owner:    ${owner}`);
-  console.log(`Chain:    ${chainId}`);
-  console.log(`NFT:      ${contract}`);
-  console.log(`Trove ID: ${troveId}`);
+  if (verbose) {
+    console.log('========================================');
+    console.log(`LOAN POSITION (${protocol})`);
+    console.log('----------------------------------------');
+    console.log(`Owner:    ${owner}`);
+    console.log(`Chain:    ${chainId}`);
+    console.log(`NFT:      ${contract}`);
+    console.log(`Trove ID: ${troveId}`);
+  }
 
   const troveNFT = new ethers.Contract(contract, troveNftAbi, provider);
 
   const troveManagerAddr = await troveNFT.troveManager();
   const collTokenAddr = await troveNFT.collToken();
 
-  console.log(`TroveManager:  ${troveManagerAddr}`);
-  console.log(`Collateral:    ${collTokenAddr}`);
+  if (verbose) {
+    console.log(`TroveManager:  ${troveManagerAddr}`);
+    console.log(`Collateral:    ${collTokenAddr}`);
+  }
 
   const troveManager = new ethers.Contract(
     troveManagerAddr,
@@ -118,37 +123,52 @@ async function describeLoanPosition(provider, chainId, protocol, row) {
     Number(ethers.formatUnits(annualInterestRate, 18)) * 100.0;
   const statusStr = troveStatusToString(statusCode);
 
-  console.log('');
-  console.log('  --- Core Trove Data ---');
-  console.log(`  Collateral:        ${collNorm.toFixed(6)} ${collSymbol}`);
-  console.log(`  Debt (entire):     ${debtNorm.toFixed(6)} (loan token)`);
-  console.log(`  Accrued interest:  ${accruedInterestNorm.toFixed(6)}`);
-  console.log(`  Annual rate:       ${interestPct.toFixed(2)}%`);
-  console.log(`  Status:            ${statusStr}`);
+  if (verbose) {
+    console.log('');
+    console.log('  --- Core Trove Data ---');
+    console.log(`  Collateral:        ${collNorm.toFixed(6)} ${collSymbol}`);
+    console.log(`  Debt (entire):     ${debtNorm.toFixed(6)} (loan token)`);
+    console.log(`  Accrued interest:  ${accruedInterestNorm.toFixed(6)}`);
+    console.log(`  Annual rate:       ${interestPct.toFixed(2)}%`);
+    console.log(`  Status:            ${statusStr}`);
+  }
 
   // Price feed + risk metrics
   const priceFeedAddr = await troveManager.priceFeed();
-  console.log('');
-  console.log(`  PriceFeed:         ${priceFeedAddr}`);
+  if (verbose) {
+    console.log('');
+    console.log(`  PriceFeed:         ${priceFeedAddr}`);
+  }
 
   const priceFeed = new ethers.Contract(priceFeedAddr, priceFeedAbi, provider);
 
   const { rawPrice, source } = await getOraclePrice(priceFeed);
 
-  console.log('');
-  console.log('  --- Risk Metrics ---');
+  if (verbose) {
+    console.log('');
+    console.log('  --- Risk Metrics ---');
+  }
 
   if (!rawPrice) {
-    console.log('  ⚠️  No price available; cannot compute LTV/liquidation price.');
-    console.log('========================================');
-    console.log('');
+    if (verbose) {
+      console.log('  ⚠️  No price available; cannot compute LTV/liquidation price.');
+      console.log('========================================');
+      console.log('');
+    }
+    // Summary log even if we have no price
+    console.log(
+      `${protocol} is ${statusStr} but no price is available to compute LTV / liquidation price.`
+    );
     return;
   }
 
   const priceNorm = Number(ethers.formatUnits(rawPrice, PRICE_DECIMALS));
-  console.log(`  Price source:      ${source}`);
-  console.log(`  Raw price:         ${rawPrice.toString()}`);
-  console.log(`  Price (normalized):${priceNorm}`);
+
+  if (verbose) {
+    console.log(`  Price source:      ${source}`);
+    console.log(`  Raw price:         ${rawPrice.toString()}`);
+    console.log(`  Price (normalized):${priceNorm}`);
+  }
 
   const MCR = await troveManager.MCR();
   const mcrNorm = Number(ethers.formatUnits(MCR, 18)); // ~1.1 etc.
@@ -169,30 +189,42 @@ async function describeLoanPosition(provider, chainId, protocol, row) {
   const icrNorm =
     icrRaw != null ? Number(ethers.formatUnits(icrRaw, 18)) : null;
 
-  console.log(`  Collateral value:  ${collValue.toFixed(6)} (price units)`);
-  console.log(`  MCR (approx):      ${(mcrNorm * 100).toFixed(2)} %`);
-  if (icrNorm != null) {
-    console.log(`  Current ICR:       ${(icrNorm * 100).toFixed(2)} %`);
-  } else {
-    console.log('  Current ICR:       (could not fetch)');
+  if (verbose) {
+    console.log(`  Collateral value:  ${collValue.toFixed(6)} (price units)`);
+    console.log(`  MCR (approx):      ${(mcrNorm * 100).toFixed(2)} %`);
+    if (icrNorm != null) {
+      console.log(`  Current ICR:       ${(icrNorm * 100).toFixed(2)} %`);
+    } else {
+      console.log('  Current ICR:       (could not fetch)');
+    }
+    console.log(`  LTV (approx):      ${(ltv * 100).toFixed(2)} %`);
+    console.log(
+      `  Liquidation price: ${liquidationPrice.toFixed(
+        8
+      )} (same units as price)`
+    );
+    console.log('========================================');
+    console.log('');
   }
-  console.log(`  LTV (approx):      ${(ltv * 100).toFixed(2)} %`);
-  console.log(
-    `  Liquidation price: ${liquidationPrice.toFixed(
-      8
-    )} (same units as price)`
-  );
 
-  console.log('========================================');
-  console.log('');
+  // === Compact summary log ===
+  const ltvPct = ltv * 100;
+  console.log(
+    `${protocol} is ${statusStr} with LTV of ${ltvPct.toFixed(
+      2
+    )}%. Current price ${priceNorm.toFixed(
+      5
+    )} with liquidation price ${liquidationPrice.toFixed(5)}.`
+  );
 }
 
 // -----------------------------
 // Public API: monitorLoans
 // -----------------------------
 
-async function monitorLoans() {
-  console.log('');
+async function monitorLoans(options = {}) {
+  const verbose = options.verbose ?? (process.env.MONITOR_VERBOSE === '1');
+
   for (const [chainId, chainCfg] of Object.entries(loanConfig.chains || {})) {
     let provider;
     try {
@@ -204,7 +236,6 @@ async function monitorLoans() {
 
     for (const c of chainCfg.contracts || []) {
       const csvPath = path.join(__dirname, '..', 'data', c.csvFile);
-      console.log(`--- Processing loan positions from ${csvPath} ---`);
 
       const rows = readCsvRows(csvPath);
       for (const row of rows) {
@@ -227,7 +258,8 @@ async function monitorLoans() {
             provider,
             chainId,
             c.protocol || c.key || 'UNKNOWN_PROTOCOL',
-            row
+            row,
+            { verbose }
           );
         } catch (err) {
           console.error(

@@ -1,4 +1,4 @@
-require('dotenv').config();
+require('dotenv').config({ quiet: true });
 // Node's native file system module. fs is used to read the commands directory and identify our command files.
 const fs = require('node:fs');
 // Node's native path utility module. path helps construct paths to access files and directories.
@@ -8,14 +8,11 @@ const { REST, Routes, Collection } = require('discord.js');
 const { monitorLoans } = require('../monitoring/loanMonitor');
 const { monitorLPs } = require('../monitoring/lpMonitor');
 
-// How often to refresh monitoring tasks (in minutes, from env, defaults shown below)
-const LOAN_MONITOR_INTERVAL_MIN = parseInt(process.env.LOAN_MONITOR_INTERVAL_MIN || '5', 10);
-const LP_MONITOR_INTERVAL_MIN = parseInt(process.env.LP_MONITOR_INTERVAL_MIN || '5', 10);
+// How often to refresh monitoring tasks (in minutes, from env, default 5)
+const MONITOR_INTERVAL_MIN = parseInt(process.env.MONITOR_INTERVAL_MIN || '5', 10);
+const MONITOR_INTERVAL_MS = Math.max(1, MONITOR_INTERVAL_MIN) * 60 * 1000;
 
-const LOAN_MONITOR_INTERVAL_MS = Math.max(1, LOAN_MONITOR_INTERVAL_MIN) * 60 * 1000;
-const LP_MONITOR_INTERVAL_MS = Math.max(1, LP_MONITOR_INTERVAL_MIN) * 60 * 1000;
-
-function onReady(client) {
+async function onReady(client) {
     console.log(`Ready! Logged in as ${client.user.tag}`);
     
     client.commands = new Collection();
@@ -39,23 +36,21 @@ function onReady(client) {
     // Construct and prepare an instance of the REST module
     const rest = new REST({ version: '10' }).setToken(process.env.BOT_TOKEN);
 
-    // Register slash commands
-    (async () => {
-        try {
-            const data = await rest.put(
-                Routes.applicationGuildCommands(
-                    process.env.CLIENT_ID, 
-                    process.env.GUILD_ID
-                ),
-                { body: commands },
-            );
+    // Register slash commands FIRST
+    try {
+        const data = await rest.put(
+            Routes.applicationGuildCommands(
+                process.env.CLIENT_ID, 
+                process.env.GUILD_ID
+            ),
+            { body: commands },
+        );
 
-            console.log(`Successfully loaded ${data.length} application (/) commands.`);
-        } catch (error) {
-            // Catch and log any errors.
-            console.error(error);
-        }
-    })();
+        console.log(`Successfully loaded ${data.length} application (/) commands.`);
+    } catch (error) {
+        // Catch and log any errors.
+        console.error(error);
+    }
 
     // ===== Monitoring example: tick-style, non-overlapping scheduler =====
 
@@ -108,8 +103,11 @@ function onReady(client) {
 
     // This is an example of how to run a function based on a time value
     // In this example, running loan / LP monitoring every N minutes using a tick-style scheduler
-    startTickScheduler('Loan monitor', LOAN_MONITOR_INTERVAL_MS, monitorLoans);
-    startTickScheduler('LP monitor', LP_MONITOR_INTERVAL_MS, monitorLPs);
+    // Loan runs first, then LP, sequentially in a single scheduler to avoid interleaved logs.
+    startTickScheduler('Loan + LP monitor', MONITOR_INTERVAL_MS, async () => {
+        await monitorLoans();  // runs first
+        await monitorLPs();    // runs after loans finish
+    });
 }
 
 module.exports = { 

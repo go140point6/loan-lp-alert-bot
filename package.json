@@ -1,32 +1,31 @@
 {
-  "name": "discordjs-v14-bot-template",
+  "name": "loan-lp-alert-bot",
   "version": "1.0.0",
-  "description": "Bot template using discordjs v14",
+  "description": "discord v14 bot for loan and lp DEX management and monitoring",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/go140point6/discordjs-v14-bot-template.git"
-  },
   "keywords": [
-    "bot",
-    "v14",
-    "slashcommands",
-    "embeds",
-    "template"
+    "enosys",
+    "sparkdex",
+    "liquity",
+    "uniswap",
+    "alert"
   ],
   "author": "go140point6",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/go140point6/discordjs-v14-bot-template/issues"
+    "url": "https://github.com/go140point6/loan-lp-alert-bot/issues"
   },
-  "homepage": "https://github.com/go140point6/discordjs-v14-bot-template#readme",
+  "homepage": "https://github.com/go140point6/loan-lp-alert-bot#readme",
   "dependencies": {
-    "axios": "^1.6.2",
-    "discord.js": "^14.14.1",
-    "dotenv": "^16.3.1",
-    "log-timestamp": "^0.3.0"
+    "csv-parse": "^6.1.0",
+    "discord.js": "^14.25.1",
+    "dotenv": "^17.2.3",
+    "ethers": "^6.16.0",
+    "fs": "^0.0.1-security",
+    "log-timestamp": "^0.3.0",
+    "node-cron": "^4.2.1"
   }
 }
