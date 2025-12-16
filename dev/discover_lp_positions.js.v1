@@ -1,0 +1,297 @@
+const path = require("path");
+// Always load .env from project root, even when script is inside /dev/
+require("dotenv").config({
+  path: path.join(__dirname, "..", ".env"),
+  quiet: true,
+});
+require("log-timestamp");
+
+const fs = require("fs");
+const { parse } = require("csv-parse");
+const { ethers } = require("ethers");
+
+// ========= CONFIG =========
+
+// CSV now correctly points to <project-root>/data/addresses.csv
+const ADDRESSES_CSV = path.join(__dirname, "..", "data", "addresses.csv");
+
+// Output CSVs always go inside project-root/data/
+const ENOSYS_OUTPUT_CSV = path.join(__dirname, "..", "data", "enosys_lp_positions.csv");
+const SPARKDEX_OUTPUT_CSV = path.join(__dirname, "..", "data", "sparkdex_lp_positions.csv");
+
+// RPC
+const FLR_RPC = process.env.FLR_MAINNET;
+if (!FLR_RPC) {
+  console.error("Missing FLR_MAINNET in .env");
+  process.exit(1);
+}
+
+// LP NFT contracts on FLR
+const LP_CONTRACTS_FLR = {
+  enosysLP: {
+    protocol: "ENOSYS_LP",
+    address: "0xD9770b1C7A6ccd33C75b5bcB1c0078f46bE46657",
+    envStartKey: "ENOSYS_LP_START_BLOCK",
+    outputCsv: ENOSYS_OUTPUT_CSV,
+  },
+  sparkdexLP: {
+    protocol: "SPARKDEX_LP",
+    address: "0xEE5FF5Bc5F852764b5584d92A4d592A53DC527da",
+    envStartKey: "SPARKDEX_LP_START_BLOCK",
+    outputCsv: SPARKDEX_OUTPUT_CSV,
+  },
+};
+
+// Max block window for eth_getLogs (Ankr limit you found)
+const MAX_LOG_RANGE_BLOCKS = 1000;
+
+// Minimal ABI: only need ownerOf for confirmation
+const ERC721_MIN_ABI = [
+  "function ownerOf(uint256 tokenId) view returns (address)",
+];
+
+// Transfer event topic for ERC721
+const TRANSFER_TOPIC = ethers.id("Transfer(address,address,uint256)");
+
+// ========= CSV HELPERS =========
+
+function loadAddressesCsv(filePath) {
+  return new Promise((resolve, reject) => {
+    const result = [];
+
+    fs.createReadStream(filePath)
+      .pipe(parse({ delimiter: ",", from_line: 1 }))
+      .on("data", (row) => {
+        const [addressRaw, chainRaw] = row;
+        if (!addressRaw || !chainRaw) return;
+
+        const address = addressRaw.trim();
+        const chain = chainRaw.trim().toUpperCase();
+
+        if (!ethers.isAddress(address)) {
+          console.warn(`Skipping invalid address in CSV: ${addressRaw}`);
+          return;
+        }
+
+        result.push({ address, chain });
+      })
+      .on("end", () => resolve(result))
+      .on("error", (err) => reject(err));
+  });
+}
+
+function writePositionsCsv(outputPath, rows) {
+  const header = "chain,protocol,contract,owner,tokenId\n";
+  const body = rows
+    .map(
+      (r) =>
+        `${r.chain},${r.protocol},${r.contract},${r.owner},${r.tokenId}`
+    )
+    .join("\n");
+
+  fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+  fs.writeFileSync(outputPath, header + body + (body ? "\n" : ""), "utf8");
+}
+
+// ========= LOG SCAN HELPERS =========
+
+function topicForAddress(addr) {
+  return ethers.zeroPadValue(addr, 32);
+}
+
+/**
+ * Scan ERC721 Transfer logs for tokenIds that were ever sent TO `owner`
+ * between `startBlock` and latest, in chunks of MAX_LOG_RANGE_BLOCKS.
+ * Then confirm which ones are still owned via ownerOf().
+ *
+ * Returns: array of tokenId strings currently owned by `owner`.
+ */
+async function discoverTokenIdsForOwner({
+  provider,
+  nftAddress,
+  owner,
+  startBlock,
+  latestBlock,
+}) {
+  const ownerTopic = topicForAddress(owner);
+  const normalizedOwner = ethers.getAddress(owner);
+  const candidateTokenIds = new Set();
+
+  const ownerOfContract = new ethers.Contract(
+    nftAddress,
+    ERC721_MIN_ABI,
+    provider
+  );
+
+  if (startBlock == null || startBlock < 0) startBlock = 0;
+  if (startBlock > latestBlock) {
+    console.log(
+      `  [${nftAddress}] startBlock ${startBlock} > latestBlock ${latestBlock}, skipping ${owner}`
+    );
+    return [];
+  }
+
+  console.log(
+    `  [${nftAddress}] discovering for owner ${owner}, blocks ${startBlock} -> ${latestBlock} (step ${MAX_LOG_RANGE_BLOCKS})`
+  );
+
+  // Page over the block range
+  for (
+    let fromBlock = startBlock;
+    fromBlock <= latestBlock;
+    fromBlock += (MAX_LOG_RANGE_BLOCKS + 1)
+  ) {
+    const toBlock = Math.min(fromBlock + MAX_LOG_RANGE_BLOCKS, latestBlock);
+
+    console.log(
+      `    scanning blocks ${fromBlock} -> ${toBlock} for owner ${owner}`
+    );
+
+    try {
+      const logsIn = await provider.getLogs({
+        address: nftAddress,
+        fromBlock,
+        toBlock,
+        topics: [TRANSFER_TOPIC, null, ownerTopic], // Transfer(from, to, tokenId) where to == owner
+      });
+
+      for (const log of logsIn) {
+        if (log.topics.length < 4) continue;
+        const tokenIdHex = log.topics[3];
+        const tokenId = BigInt(tokenIdHex).toString();
+        candidateTokenIds.add(tokenId);
+      }
+    } catch (err) {
+      console.error(
+        `      getLogs error for ${nftAddress} [${fromBlock}–${toBlock}] owner ${owner}: ${err.message}`
+      );
+    }
+  }
+
+  // Confirm current ownership
+  const ownedNow = [];
+  for (const tokenId of candidateTokenIds) {
+    try {
+      const actualOwner = await ownerOfContract.ownerOf(tokenId);
+      if (ethers.getAddress(actualOwner) === normalizedOwner) {
+        ownedNow.push(tokenId);
+      }
+    } catch (err) {
+      // If ownerOf fails (burned, etc.), ignore
+      console.error(
+        `      ownerOf(${tokenId}) failed on ${nftAddress} (owner ${owner}): ${err.message}`
+      );
+    }
+  }
+
+  return ownedNow;
+}
+
+/**
+ * For a given LP contract on FLR, discover all tokenIds currently owned
+ * by any of the provided FLR addresses, starting from env-based startBlock.
+ *
+ * Returns: array of { chain, protocol, contract, owner, tokenId }.
+ */
+async function discoverForLpContract(provider, lpConfig, flrAddresses) {
+  const { protocol, address: nftAddress, envStartKey } = lpConfig;
+
+  if (!nftAddress || !nftAddress.startsWith("0x")) {
+    console.warn(`  Skipping LP with invalid address: ${nftAddress}`);
+    return [];
+  }
+
+  const latestBlock = await provider.getBlockNumber();
+  const envVal = process.env[envStartKey];
+  const startBlock = envVal ? Number(envVal) : 0;
+
+  console.log(
+    `\n=== Discovering positions for ${protocol} (${nftAddress}) ===`
+  );
+  console.log(
+    `  Using start block: ${startBlock} (env ${envStartKey}), latest block: ${latestBlock}`
+  );
+
+  const results = [];
+
+  for (const { address: owner } of flrAddresses) {
+    const tokenIds = await discoverTokenIdsForOwner({
+      provider,
+      nftAddress,
+      owner,
+      startBlock,
+      latestBlock,
+    });
+
+    if (tokenIds.length === 0) {
+      console.log(`  No tokenIds currently owned by ${owner} for ${protocol}`);
+      continue;
+    }
+
+    for (const tokenId of tokenIds) {
+      results.push({
+        chain: "FLR",
+        protocol,
+        contract: nftAddress,
+        owner,
+        tokenId,
+      });
+    }
+  }
+
+  console.log(
+    `  >>> Found ${results.length} positions for ${protocol} across ${
+      flrAddresses.length
+    } owner(s).\n`
+  );
+
+  return results;
+}
+
+// ========= MAIN =========
+
+async function main() {
+  console.log("Loading addresses CSV:", ADDRESSES_CSV);
+  const allAddresses = await loadAddressesCsv(ADDRESSES_CSV);
+
+  const flrAddresses = allAddresses.filter((r) => r.chain === "FLR");
+
+  if (flrAddresses.length === 0) {
+    console.log("No FLR addresses found in CSV. Nothing to do.");
+    return;
+  }
+
+  console.log("FLR addresses to scan:");
+  console.log(flrAddresses);
+
+  const provider = new ethers.JsonRpcProvider(FLR_RPC);
+
+  // Discover for each LP contract on FLR
+  const enosysConfig = LP_CONTRACTS_FLR.enosysLP;
+  const sparkdexConfig = LP_CONTRACTS_FLR.sparkdexLP;
+
+  const enosysRows = await discoverForLpContract(
+    provider,
+    enosysConfig,
+    flrAddresses
+  );
+  //const sparkdexRows = await discoverForLpContract(
+  //  provider,
+  //  sparkdexConfig,
+  //  flrAddresses
+  //);
+
+  // Write CSVs
+  console.log(`Writing Enosys LP positions to ${ENOSYS_OUTPUT_CSV}`);
+  writePositionsCsv(ENOSYS_OUTPUT_CSV, enosysRows);
+
+//   console.log(`Writing SparkDEX LP positions to ${SPARKDEX_OUTPUT_CSV}`);
+//   writePositionsCsv(SPARKDEX_OUTPUT_CSV, sparkdexRows);
+
+  console.log("\nDiscovery complete.");
+}
+
+main().catch((err) => {
+  console.error("Fatal error in discovery script:", err);
+  process.exit(1);
+});

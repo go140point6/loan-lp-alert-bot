@@ -4,11 +4,16 @@ const fs = require('node:fs');
 // Node's native path utility module. path helps construct paths to access files and directories.
 const path = require('node:path');
 const { REST, Routes, Collection } = require('discord.js');
-const axios = require('axios'); // Required for getXRP example below
 
-// How often to refresh XRP price (in minutes, from env, default 5)
-const PRICE_INTERVAL_MIN = parseInt(process.env.PRICE_INTERVAL_MIN || '5', 10);
-const PRICE_INTERVAL_MS = Math.max(1, PRICE_INTERVAL_MIN) * 60 * 1000;
+const { monitorLoans } = require('../monitoring/loanMonitor');
+const { monitorLPs } = require('../monitoring/lpMonitor');
+
+// How often to refresh monitoring tasks (in minutes, from env, defaults shown below)
+const LOAN_MONITOR_INTERVAL_MIN = parseInt(process.env.LOAN_MONITOR_INTERVAL_MIN || '5', 10);
+const LP_MONITOR_INTERVAL_MIN = parseInt(process.env.LP_MONITOR_INTERVAL_MIN || '5', 10);
+
+const LOAN_MONITOR_INTERVAL_MS = Math.max(1, LOAN_MONITOR_INTERVAL_MIN) * 60 * 1000;
+const LP_MONITOR_INTERVAL_MS = Math.max(1, LP_MONITOR_INTERVAL_MIN) * 60 * 1000;
 
 function onReady(client) {
     console.log(`Ready! Logged in as ${client.user.tag}`);
@@ -52,26 +57,26 @@ function onReady(client) {
         }
     })();
 
-    // ===== XRP EXAMPLE: tick-style, non-overlapping scheduler =====
+    // ===== Monitoring example: tick-style, non-overlapping scheduler =====
 
-    // Run XRP fetch once and log timing
-    async function runXRPOnce() {
+    // Generic runner wrapper so logs stay consistent per task
+    async function runTaskOnce(label, fn) {
         const t0 = Date.now();
-        console.log('▶️  XRP price fetch start');
+        console.log(`▶️  ${label} start`);
 
         try {
-            await getXRPToken();
+            await fn();
         } catch (e) {
-            console.error('❌ getXRPToken failed:', e);
+            console.error(`❌ ${label} failed:`, e);
         }
 
         const elapsed = Date.now() - t0;
-        console.log(`⏹️  XRP price fetch end (elapsed ${elapsed} ms)`);
+        console.log(`⏹️  ${label} end (elapsed ${elapsed} ms)`);
         return elapsed;
     }
 
     // Simple tick scheduler: avoids overlapping runs, uses setTimeout
-    function startXRPScheduler(intervalMs) {
+    function startTickScheduler(label, intervalMs, fn) {
         let running = false;
 
         async function tick() {
@@ -79,17 +84,19 @@ function onReady(client) {
             running = true;
 
             try {
-                const elapsed = await runXRPOnce();
+                const elapsed = await runTaskOnce(label, fn);
                 const nextDelay = Math.max(0, intervalMs - elapsed);
                 if (nextDelay === 0) {
-                    console.warn(`⏱️ XRP fetch duration (${elapsed} ms) ≥ interval (${intervalMs} ms). Scheduling next immediately.`);
+                    console.warn(
+                        `⏱️ ${label} duration (${elapsed} ms) ≥ interval (${intervalMs} ms). Scheduling next immediately.`
+                    );
                 }
                 setTimeout(() => {
                     running = false;
                     tick();
                 }, nextDelay);
             } catch (err) {
-                console.error('Unexpected XRP scheduler error:', err);
+                console.error(`Unexpected scheduler error in ${label}:`, err);
                 running = false;
                 setTimeout(tick, intervalMs);
             }
@@ -100,35 +107,9 @@ function onReady(client) {
     }
 
     // This is an example of how to run a function based on a time value
-    // In this example, getting XRP price and updating it every N minutes
-    startXRPScheduler(PRICE_INTERVAL_MS);
-}
-
-// ===== Your original XRP helpers (unchanged) =====
-
-async function getXRP() {
-    await axios
-        .get(`https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=ripple`)
-        .then(res => {
-            if (res.data && res.data[0].current_price) {
-                const currentXRP = res.data[0].current_price.toFixed(4) || 0;
-                console.log("XRP current price: " + currentXRP);
-                module.exports.currentXRP = currentXRP;
-            } else {
-                console.log("Error loading coin data");
-            }
-        })
-        .catch(err => {
-            console.log(
-                "An error with the Coin Gecko api call: ",
-                err.response && err.response.status,
-                err.response && err.response.statusText
-            );
-        });
-}
-
-async function getXRPToken() {
-    await getXRP();
+    // In this example, running loan / LP monitoring every N minutes using a tick-style scheduler
+    startTickScheduler('Loan monitor', LOAN_MONITOR_INTERVAL_MS, monitorLoans);
+    startTickScheduler('LP monitor', LP_MONITOR_INTERVAL_MS, monitorLPs);
 }
 
 module.exports = { 

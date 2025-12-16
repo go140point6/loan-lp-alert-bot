@@ -1,0 +1,21 @@
+{
+  "chains": {
+    "FLR": {
+      "rpcEnvKey": "FLR_MAINNET",
+      "contracts": [
+        {
+          "key": "enosys_lp",
+          "protocol": "ENOSYS_LP",
+          "contract": "0xD9770b1C7A6ccd33C75b5bcB1c0078f46bE46657",
+          "csvFile": "enosys_lp_positions.csv"
+        },
+        {
+          "key": "sparkdex_lp",
+          "protocol": "SPARKDEX_LP",
+          "contract": "0xEE5FF5Bc5F852764b5584d92A4d592A53DC527da",
+          "csvFile": "sparkdex_lp_positions.csv"
+        }
+      ]
+    }
+  }
+}

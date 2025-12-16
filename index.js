@@ -1,5 +1,6 @@
-require('dotenv').config();
+require('dotenv').config({ quiet: true });
 require('log-timestamp');
+
 const { Client, Events } = require('discord.js');
 const { GatewayIntentBits } = require('./config/GatewayIntentBits');
 const { onReady } = require('./events/onReady');
@@ -8,20 +9,23 @@ const { onMessage } = require('./events/onMessage');
 const { validateEnv } = require('./utils/validateEnv');
 
 (async () => {
-    validateEnv();
+  // Validate required env vars (BOT_TOKEN, RPC URLs, etc.)
+  validateEnv();
 
-    const client = new Client({ intents: GatewayIntentBits });
-    module.exports = client;
+  const client = new Client({ intents: GatewayIntentBits });
+  module.exports = client;
 
-    client.once(Events.ClientReady, async() => await onReady(client));
+  client.once(Events.ClientReady, async () => {
+    await onReady(client);
+  });
 
-    client.on(Events.InteractionCreate, async interaction => { 
-        onInteraction(interaction)
-        //console.log(interaction.commandName)
-        //console.log(interaction);
-    });
-    
-    client.on(Events.MessageCreate, async(message) => await onMessage(message));
+  client.on(Events.InteractionCreate, async (interaction) => {
+    await onInteraction(interaction);
+  });
 
-    await client.login(process.env.BOT_TOKEN);
+  client.on(Events.MessageCreate, async (message) => {
+    await onMessage(message);
+  });
+
+  await client.login(process.env.BOT_TOKEN);
 })();

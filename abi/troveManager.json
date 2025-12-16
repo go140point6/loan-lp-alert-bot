@@ -1,0 +1,2863 @@
+[
+  {
+    "inputs": [],
+    "stateMutability": "nonpayable",
+    "type": "constructor"
+  },
+  {
+    "inputs": [],
+    "name": "AddressAlreadyHasRole",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "AlreadyInThisState",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "BatchSharesRatioTooHigh",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "BranchPaused",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "CallerNotBorrowerOperations",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "CallerNotCollateralRegistry",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "EmptyData",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidInitialization",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidLiquidationRedemptionFacet",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "MaxDebtCapBelowMinDebt",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_coll",
+        "type": "uint256"
+      }
+    ],
+    "name": "MinCollNotReached",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "MissingRole",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "NotEnoughBoldBalance",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "NotInitializing",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "NotShutDown",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "NothingToLiquidate",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "OnlyOneTroveLeft",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "owner",
+        "type": "address"
+      }
+    ],
+    "name": "OwnableInvalidOwner",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      }
+    ],
+    "name": "OwnableUnauthorizedAccount",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "TheSameValue",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "ZeroAddress",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "ZeroAmount",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "ZeroCallee",
+    "type": "error"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "_newActivePoolAddress",
+        "type": "address"
+      }
+    ],
+    "name": "ActivePoolAddressChanged",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "_interestBatchManager",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "enum ITroveEvents.BatchOperation",
+        "name": "_operation",
+        "type": "uint8"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "_debt",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "_coll",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "_annualInterestRate",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "_annualManagementFee",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "_totalDebtShares",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "_debtIncreaseFromUpfrontFee",
+        "type": "uint256"
+      }
+    ],
+    "name": "BatchUpdated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "_troveId",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "_interestBatchManager",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "_batchDebtShares",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "_coll",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "_stake",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "_snapshotOfTotalCollRedist",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "_snapshotOfTotalDebtRedist",
+        "type": "uint256"
+      }
+    ],
+    "name": "BatchedTroveUpdated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "_newBoldTokenAddress",
+        "type": "address"
+      }
+    ],
+    "name": "BoldTokenAddressChanged",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "_newBorrowerOperationsAddress",
+        "type": "address"
+      }
+    ],
+    "name": "BorrowerOperationsAddressChanged",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "_collGasCompensationCap",
+        "type": "uint256"
+      }
+    ],
+    "name": "CollGasCompensationCapUpdated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "_collSurplusPoolAddress",
+        "type": "address"
+      }
+    ],
+    "name": "CollSurplusPoolAddressChanged",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "_collateralRegistryAddress",
+        "type": "address"
+      }
+    ],
+    "name": "CollateralRegistryAddressChanged",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "_newDefaultPoolAddress",
+        "type": "address"
+      }
+    ],
+    "name": "DefaultPoolAddressChanged",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "_ethGasCompensation",
+        "type": "uint256"
+      }
+    ],
+    "name": "EthGasCompensationUpdated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "_gasPoolAddress",
+        "type": "address"
+      }
+    ],
+    "name": "GasPoolAddressChanged",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "uint64",
+        "name": "version",
+        "type": "uint64"
+      }
+    ],
+    "name": "Initialized",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "_debtOffsetBySP",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "_debtRedistributed",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "_boldGasCompensation",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "_collGasCompensation",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "_collSentToSP",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "_collRedistributed",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "_collSurplus",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "_L_ETH",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "_L_boldDebt",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "_price",
+        "type": "uint256"
+      }
+    ],
+    "name": "Liquidation",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "_facet",
+        "type": "address"
+      }
+    ],
+    "name": "LiquidationRedemptionFacetUpdated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "_minDebt",
+        "type": "uint256"
+      }
+    ],
+    "name": "MinDebtUpdated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "previousOwner",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "newOwner",
+        "type": "address"
+      }
+    ],
+    "name": "OwnershipTransferStarted",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "previousOwner",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "newOwner",
+        "type": "address"
+      }
+    ],
+    "name": "OwnershipTransferred",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "bool",
+        "name": "isPaused",
+        "type": "bool"
+      }
+    ],
+    "name": "PauseModeToggled",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "_account",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "bool",
+        "name": "_shouldAdd",
+        "type": "bool"
+      }
+    ],
+    "name": "PauserUpdated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "_newPriceFeedAddress",
+        "type": "address"
+      }
+    ],
+    "name": "PriceFeedAddressChanged",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "_attemptedBoldAmount",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "_actualBoldAmount",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "_ETHSent",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "_ETHFee",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "_price",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "_redemptionPrice",
+        "type": "uint256"
+      }
+    ],
+    "name": "Redemption",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "_troveId",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "_ETHFee",
+        "type": "uint256"
+      }
+    ],
+    "name": "RedemptionFeePaidToTrove",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "_sortedTrovesAddress",
+        "type": "address"
+      }
+    ],
+    "name": "SortedTrovesAddressChanged",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "_stabilityPoolAddress",
+        "type": "address"
+      }
+    ],
+    "name": "StabilityPoolAddressChanged",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "newScale",
+        "type": "uint256"
+      }
+    ],
+    "name": "TotalStakesScaleUpdated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "_newTroveNFTAddress",
+        "type": "address"
+      }
+    ],
+    "name": "TroveNFTAddressChanged",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "_troveId",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "enum ITroveEvents.Operation",
+        "name": "_operation",
+        "type": "uint8"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "_annualInterestRate",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "_debtIncreaseFromRedist",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "_debtIncreaseFromUpfrontFee",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "int256",
+        "name": "_debtChangeFromOperation",
+        "type": "int256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "_collIncreaseFromRedist",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "int256",
+        "name": "_collChangeFromOperation",
+        "type": "int256"
+      }
+    ],
+    "name": "TroveOperation",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "_troveId",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "newScale",
+        "type": "uint256"
+      }
+    ],
+    "name": "TroveStakeScaleUpdated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "_troveId",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "_debt",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "_coll",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "_stake",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "_annualInterestRate",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "_snapshotOfTotalCollRedist",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "_snapshotOfTotalDebtRedist",
+        "type": "uint256"
+      }
+    ],
+    "name": "TroveUpdated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "_account",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "bool",
+        "name": "_shouldAdd",
+        "type": "bool"
+      }
+    ],
+    "name": "UnpauserUpdated",
+    "type": "event"
+  },
+  {
+    "inputs": [],
+    "name": "CCR",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "COLL_GAS_COMPENSATION_CAP",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "COLL_GAS_COMPENSATION_DIVISOR",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "ETH_GAS_COMPENSATION",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "LIQUIDATION_PENALTY_REDISTRIBUTION",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "LIQUIDATION_PENALTY_SP",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "MCR",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "MIN_DEBT",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "MIN_TOTAL_STAKES",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "SCALE_FACTOR",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "SCR",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "Troves",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "debt",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "coll",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "stake",
+        "type": "uint256"
+      },
+      {
+        "internalType": "enum ITroveManagerBase.Status",
+        "name": "status",
+        "type": "uint8"
+      },
+      {
+        "internalType": "uint64",
+        "name": "arrayIndex",
+        "type": "uint64"
+      },
+      {
+        "internalType": "uint64",
+        "name": "lastDebtUpdateTime",
+        "type": "uint64"
+      },
+      {
+        "internalType": "uint64",
+        "name": "lastInterestRateAdjTime",
+        "type": "uint64"
+      },
+      {
+        "internalType": "uint256",
+        "name": "annualInterestRate",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "interestBatchManager",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "batchDebtShares",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "stakeScale",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "URGENT_REDEMPTION_BONUS",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "acceptOwnership",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "activePool",
+    "outputs": [
+      {
+        "internalType": "contract IActivePool",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "batchIds",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256[]",
+        "name": "_troveArray",
+        "type": "uint256[]"
+      }
+    ],
+    "name": "batchLiquidateTroves",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "borrowerOperations",
+    "outputs": [
+      {
+        "internalType": "contract IBorrowerOperations",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_troveId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_price",
+        "type": "uint256"
+      }
+    ],
+    "name": "getCurrentICR",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getEntireBranchColl",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "entireSystemColl",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getEntireBranchDebt",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "entireSystemDebt",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_batchAddress",
+        "type": "address"
+      }
+    ],
+    "name": "getLatestBatchData",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "totalDebtShares",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "entireDebtWithoutRedistribution",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "entireCollWithoutRedistribution",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "accruedInterest",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "recordedDebt",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "annualInterestRate",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "weightedRecordedDebt",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "annualManagementFee",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "accruedManagementFee",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "weightedRecordedBatchManagementFee",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "lastDebtUpdateTime",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "lastInterestRateAdjTime",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct LatestBatchData",
+        "name": "batch",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_troveId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getLatestTroveData",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "entireDebt",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "entireColl",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "redistBoldDebtGain",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "redistCollGain",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "accruedInterest",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "recordedDebt",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "annualInterestRate",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "weightedRecordedDebt",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "accruedBatchManagementFee",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "lastInterestRateAdjTime",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct LatestTroveData",
+        "name": "trove",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_troveId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getTroveAnnualInterestRate",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_index",
+        "type": "uint256"
+      }
+    ],
+    "name": "getTroveFromTroveIdsArray",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getTroveIdsCount",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_troveId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getTroveStatus",
+    "outputs": [
+      {
+        "internalType": "enum ITroveManagerBase.Status",
+        "name": "",
+        "type": "uint8"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getUnbackedPortionPriceAndRedeemability",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      },
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "contract IAddressesRegistry",
+        "name": "_addressesRegistry",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_ethGasCompensation",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_collGasCompensationCap",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "_liquidationRedemptionFacet",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_owner",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_wnatBalanceTracker",
+        "type": "address"
+      }
+    ],
+    "name": "initialize",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "isPaused",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "isWnatCollateral",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "lastZombieTroveId",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "liquidationRedemptionFacet",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "minTotalStakes",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_troveId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_newColl",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_newDebt",
+        "type": "uint256"
+      },
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "appliedRedistBoldDebtGain",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "appliedRedistCollGain",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "collIncrease",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "collDecrease",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "debtIncrease",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "debtDecrease",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "newWeightedRecordedDebt",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "oldWeightedRecordedDebt",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "upfrontFee",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "batchAccruedManagementFee",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "newWeightedRecordedBatchManagementFee",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "oldWeightedRecordedBatchManagementFee",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct TroveChange",
+        "name": "_troveChange",
+        "type": "tuple"
+      }
+    ],
+    "name": "onAdjustTrove",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_troveId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_newTroveColl",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_newTroveDebt",
+        "type": "uint256"
+      },
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "appliedRedistBoldDebtGain",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "appliedRedistCollGain",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "collIncrease",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "collDecrease",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "debtIncrease",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "debtDecrease",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "newWeightedRecordedDebt",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "oldWeightedRecordedDebt",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "upfrontFee",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "batchAccruedManagementFee",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "newWeightedRecordedBatchManagementFee",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "oldWeightedRecordedBatchManagementFee",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct TroveChange",
+        "name": "_troveChange",
+        "type": "tuple"
+      },
+      {
+        "internalType": "address",
+        "name": "_batchAddress",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_newBatchColl",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_newBatchDebt",
+        "type": "uint256"
+      }
+    ],
+    "name": "onAdjustTroveInsideBatch",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_troveId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_newColl",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_newDebt",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_newAnnualInterestRate",
+        "type": "uint256"
+      },
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "appliedRedistBoldDebtGain",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "appliedRedistCollGain",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "collIncrease",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "collDecrease",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "debtIncrease",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "debtDecrease",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "newWeightedRecordedDebt",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "oldWeightedRecordedDebt",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "upfrontFee",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "batchAccruedManagementFee",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "newWeightedRecordedBatchManagementFee",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "oldWeightedRecordedBatchManagementFee",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct TroveChange",
+        "name": "_troveChange",
+        "type": "tuple"
+      }
+    ],
+    "name": "onAdjustTroveInterestRate",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_troveId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_newTroveColl",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_newTroveDebt",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "_batchAddress",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_newBatchColl",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_newBatchDebt",
+        "type": "uint256"
+      },
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "appliedRedistBoldDebtGain",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "appliedRedistCollGain",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "collIncrease",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "collDecrease",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "debtIncrease",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "debtDecrease",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "newWeightedRecordedDebt",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "oldWeightedRecordedDebt",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "upfrontFee",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "batchAccruedManagementFee",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "newWeightedRecordedBatchManagementFee",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "oldWeightedRecordedBatchManagementFee",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct TroveChange",
+        "name": "_troveChange",
+        "type": "tuple"
+      }
+    ],
+    "name": "onApplyTroveInterest",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_troveId",
+        "type": "uint256"
+      },
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "appliedRedistBoldDebtGain",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "appliedRedistCollGain",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "collIncrease",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "collDecrease",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "debtIncrease",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "debtDecrease",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "newWeightedRecordedDebt",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "oldWeightedRecordedDebt",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "upfrontFee",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "batchAccruedManagementFee",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "newWeightedRecordedBatchManagementFee",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "oldWeightedRecordedBatchManagementFee",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct TroveChange",
+        "name": "_troveChange",
+        "type": "tuple"
+      },
+      {
+        "internalType": "address",
+        "name": "_batchAddress",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_newBatchColl",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_newBatchDebt",
+        "type": "uint256"
+      }
+    ],
+    "name": "onCloseTrove",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_batchAddress",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_newColl",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_newDebt",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_newAnnualManagementFee",
+        "type": "uint256"
+      }
+    ],
+    "name": "onLowerBatchManagerAnnualFee",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_owner",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_troveId",
+        "type": "uint256"
+      },
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "appliedRedistBoldDebtGain",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "appliedRedistCollGain",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "collIncrease",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "collDecrease",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "debtIncrease",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "debtDecrease",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "newWeightedRecordedDebt",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "oldWeightedRecordedDebt",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "upfrontFee",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "batchAccruedManagementFee",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "newWeightedRecordedBatchManagementFee",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "oldWeightedRecordedBatchManagementFee",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct TroveChange",
+        "name": "_troveChange",
+        "type": "tuple"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_annualInterestRate",
+        "type": "uint256"
+      }
+    ],
+    "name": "onOpenTrove",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_owner",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_troveId",
+        "type": "uint256"
+      },
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "appliedRedistBoldDebtGain",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "appliedRedistCollGain",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "collIncrease",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "collDecrease",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "debtIncrease",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "debtDecrease",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "newWeightedRecordedDebt",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "oldWeightedRecordedDebt",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "upfrontFee",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "batchAccruedManagementFee",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "newWeightedRecordedBatchManagementFee",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "oldWeightedRecordedBatchManagementFee",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct TroveChange",
+        "name": "_troveChange",
+        "type": "tuple"
+      },
+      {
+        "internalType": "address",
+        "name": "_batchAddress",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_batchColl",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_batchDebt",
+        "type": "uint256"
+      }
+    ],
+    "name": "onOpenTroveAndJoinBatch",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_account",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_annualInterestRate",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_annualManagementFee",
+        "type": "uint256"
+      }
+    ],
+    "name": "onRegisterBatchManager",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_troveId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_newTroveColl",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_newTroveDebt",
+        "type": "uint256"
+      },
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "appliedRedistBoldDebtGain",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "appliedRedistCollGain",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "collIncrease",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "collDecrease",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "debtIncrease",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "debtDecrease",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "newWeightedRecordedDebt",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "oldWeightedRecordedDebt",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "upfrontFee",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "batchAccruedManagementFee",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "newWeightedRecordedBatchManagementFee",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "oldWeightedRecordedBatchManagementFee",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct TroveChange",
+        "name": "_troveChange",
+        "type": "tuple"
+      },
+      {
+        "internalType": "address",
+        "name": "_batchAddress",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_newBatchColl",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_newBatchDebt",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_newAnnualInterestRate",
+        "type": "uint256"
+      }
+    ],
+    "name": "onRemoveFromBatch",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_batchAddress",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_newColl",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_newDebt",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_newAnnualInterestRate",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_upfrontFee",
+        "type": "uint256"
+      }
+    ],
+    "name": "onSetBatchManagerAnnualInterestRate",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "troveId",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "troveColl",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "troveDebt",
+            "type": "uint256"
+          },
+          {
+            "components": [
+              {
+                "internalType": "uint256",
+                "name": "appliedRedistBoldDebtGain",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "appliedRedistCollGain",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "collIncrease",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "collDecrease",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "debtIncrease",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "debtDecrease",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "newWeightedRecordedDebt",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "oldWeightedRecordedDebt",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "upfrontFee",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "batchAccruedManagementFee",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "newWeightedRecordedBatchManagementFee",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "oldWeightedRecordedBatchManagementFee",
+                "type": "uint256"
+              }
+            ],
+            "internalType": "struct TroveChange",
+            "name": "troveChange",
+            "type": "tuple"
+          },
+          {
+            "internalType": "address",
+            "name": "newBatchAddress",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "newBatchColl",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "newBatchDebt",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct ITroveManager.OnSetInterestBatchManagerParams",
+        "name": "_params",
+        "type": "tuple"
+      }
+    ],
+    "name": "onSetInterestBatchManager",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "owner",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "pause",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "name": "pauser",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "pendingOwner",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "priceFeed",
+    "outputs": [
+      {
+        "internalType": "contract IPriceFeed",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_redeemer",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_boldamount",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_price",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_redemptionRate",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_maxIterations",
+        "type": "uint256"
+      }
+    ],
+    "name": "redeemCollateral",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "_redeemedAmount",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "renounceOwnership",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "rewardSnapshots",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "coll",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "boldDebt",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_collGasCompensationCap",
+        "type": "uint256"
+      }
+    ],
+    "name": "setCollGasCompensationCap",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_ethGasCompensation",
+        "type": "uint256"
+      }
+    ],
+    "name": "setEthGasCompensation",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_facet",
+        "type": "address"
+      }
+    ],
+    "name": "setLiquidationRedemptionFacet",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_minDebt",
+        "type": "uint256"
+      }
+    ],
+    "name": "setMinDebt",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_troveId",
+        "type": "uint256"
+      }
+    ],
+    "name": "setTroveStatusToActive",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "shutdown",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "shutdownTime",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "sortedTroves",
+    "outputs": [
+      {
+        "internalType": "contract ISortedTroves",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "stabilityPool",
+    "outputs": [
+      {
+        "internalType": "contract IStabilityPool",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "totalStakesCurrentScale",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "newOwner",
+        "type": "address"
+      }
+    ],
+    "name": "transferOwnership",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "troveNFT",
+    "outputs": [
+      {
+        "internalType": "contract ITroveNFT",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "unpause",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "name": "unpauser",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_account",
+        "type": "address"
+      },
+      {
+        "internalType": "bool",
+        "name": "_shouldAdd",
+        "type": "bool"
+      }
+    ],
+    "name": "updatePauser",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_account",
+        "type": "address"
+      },
+      {
+        "internalType": "bool",
+        "name": "_shouldAdd",
+        "type": "bool"
+      }
+    ],
+    "name": "updateUnpauser",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_boldAmount",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256[]",
+        "name": "_troveIds",
+        "type": "uint256[]"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_minCollateral",
+        "type": "uint256"
+      }
+    ],
+    "name": "urgentRedemption",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "wnatBalanceTracker",
+    "outputs": [
+      {
+        "internalType": "contract INftTokenBalanceTracker",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  }
+]
