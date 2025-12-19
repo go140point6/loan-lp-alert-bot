@@ -133,3 +133,6 @@ data/enosys_fxrp_loans_positions.csv
 data/enosys_lp_positions.csv
 data/enosys_wflr_loans_positions.csv
 data/myfiles/*
+data/lp_scan_state.json
+data/sparkdex_lp_positions.csv
+data/loan_scan_state.json

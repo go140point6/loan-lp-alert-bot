@@ -1,0 +1,23 @@
+{
+  "chains": {
+    "FLR": {
+      "rpcEnvKey": "FLR_MAINNET",
+      "contracts": [
+        {
+          "key": "enosys_fxrp",
+          "protocol": "ENOSYS_LOAN_FXRP",
+          "address": "0x5734E64d12621d353772D05210675B17923F3ff6",
+          "envStartKey": "ENOSYS_FXRP_LOAN_START_BLOCK",
+          "csvFile": "enosys_fxrp_loans_positions.csv"
+        },
+        {
+          "key": "enosys_wflr",
+          "protocol": "ENOSYS_LOAN_WFLR",
+          "address": "0x9EC6e96C8A96083daAAa68016FFcEd3D0606D72E",
+          "envStartKey": "ENOSYS_WFLR_LOAN_START_BLOCK",
+          "csvFile": "enosys_wflr_loans_positions.csv"
+        }
+      ]
+    }
+  }
+}
