@@ -1,6 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
-const client = require('../index');
-const { getLpSummaries } = require('../monitoring/lpMonitor');
+// const client = require('../index');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -9,6 +8,9 @@ module.exports = {
   async execute(interaction) {
     try {
       await interaction.deferReply();
+
+      // Lazy-load to avoid circular dependency issues
+      const { getLpSummaries } = require('../monitoring/lpMonitor');
 
       const summaries = await getLpSummaries();
 
@@ -43,6 +45,14 @@ module.exports = {
         '_Range status is based on the current pool tick vs your position bounds._',
       ];
 
+      const tierColorEmoji = {
+        LOW: '🟩',      // green
+        MEDIUM: '🟨',   // yellow
+        HIGH: '🟧',     // orange
+        CRITICAL: '🟥', // red
+        UNKNOWN: '⬜',
+      };
+
       const fields = summaries.map((s) => {
         const header = `${s.protocol} (${s.chainId})`;
 
@@ -51,11 +61,13 @@ module.exports = {
         // Basic status
         valueLines.push(`Status: **${s.status}**, Range: **${s.rangeStatus}**`);
 
-        // Range tier (if available)
+        // Range tier (highlighted in a code block with a color emoji)
         if (s.lpRangeTier) {
           const labelText = s.lpRangeLabel ? ` – ${s.lpRangeLabel}` : '';
+          const emoji = tierColorEmoji[s.lpRangeTier] || '⬜';
+
           valueLines.push(
-            `Range tier: **${s.lpRangeTier}**${labelText}`
+            '```' + `${emoji} Range tier: ${s.lpRangeTier}${labelText}` + '```'
           );
         }
 
@@ -65,11 +77,11 @@ module.exports = {
             `Position in band: **${(s.lpPositionFrac * 100).toFixed(2)}%** from lower bound`
           );
         }
-        if (typeof s.lpDistanceFrac === 'number') {
-          valueLines.push(
-            `Distance to edge/out: **${(s.lpDistanceFrac * 100).toFixed(2)}%** of band width`
-          );
-        }
+        // if (typeof s.lpDistanceFrac === 'number') {
+        //   valueLines.push(
+        //     `Distance to edge/out: **${(s.lpDistanceFrac * 100).toFixed(2)}%** of band width`
+        //   );
+        // }
 
         // Pair / fee
         if (s.pairLabel) {
@@ -78,9 +90,9 @@ module.exports = {
           valueLines.push(`Pair: **${s.token0} - ${s.token1}**`);
         }
 
-        if (typeof s.fee === 'number') {
-          valueLines.push(`Fee tier: **${s.fee}**`);
-        }
+        // if (typeof s.fee === 'number') {
+        //   valueLines.push(`Fee tier: **${s.fee}**`);
+        // }
 
         // Tick info
         if (
@@ -97,15 +109,15 @@ module.exports = {
         }
 
         // Liquidity
-        if (s.liquidity) {
-          valueLines.push(`Liquidity: \`${s.liquidity}\``);
-        }
+        // if (s.liquidity) {
+        //   valueLines.push(`Liquidity: \`${s.liquidity}\``);
+        // }
 
         // NFT / pool info (best-effort, mostly for debugging)
-        valueLines.push(`NFT: \`${s.nftContract}\` #\`${s.tokenId}\``);
-        if (s.poolAddr) {
-          valueLines.push(`Pool: \`${s.poolAddr}\``);
-        }
+        // valueLines.push(`NFT: \`${s.nftContract}\` #\`${s.tokenId}\``);
+        // if (s.poolAddr) {
+        //   valueLines.push(`Pool: \`${s.poolAddr}\``);
+        // }
 
         return {
           name: header,
@@ -114,10 +126,10 @@ module.exports = {
       });
 
       const embed = new EmbedBuilder()
-        .setColor('DarkGreen')
+        .setColor('DarkRed')
         .setTitle('My LP Positions')
-        .setDescription(descLines.join('\n'))
-        .setThumbnail(client.user.avatarURL())
+        //.setDescription(descLines.join('\n'))
+        .setThumbnail(interaction.client.user.avatarURL())
         .addFields(fields)
         .setTimestamp();
 

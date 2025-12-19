@@ -9,11 +9,20 @@ const cron = require('node-cron');
 
 const { monitorLoans } = require('../monitoring/loanMonitor');
 const { monitorLPs } = require('../monitoring/lpMonitor');
+const { sendDailyHeartbeat } = require('../monitoring/dailyHeartbeat');
 
 // Cron schedule for monitoring (from .env)
 const CRON_SCHED = process.env.CRON_SCHED;
 if (!CRON_SCHED) {
-  console.error("Missing CRON_SCHED in .env");
+  console.error('Missing CRON_SCHED in .env');
+  process.exit(1);
+}
+
+// Cron schedule for daily heartbeat (from .env)
+// e.g. HEARTBEAT_CRON="0 3 * * *"  // 3:00 AM America/Los_Angeles
+const HEARTBEAT_CRON = process.env.HEARTBEAT_CRON;
+if (!HEARTBEAT_CRON) {
+  console.error('Missing HEARTBEAT_CRON in .env');
   process.exit(1);
 }
 
@@ -57,7 +66,6 @@ async function onReady(client) {
 
     console.log(`Successfully loaded ${data.length} application (/) commands.`);
   } catch (error) {
-    // Catch and log any errors.
     console.error(error);
   }
 
@@ -67,6 +75,29 @@ async function onReady(client) {
 
   let isMonitorRunning = false;
 
+  // -------- RUN MONITOR IMMEDIATELY ON STARTUP --------
+  (async () => {
+    if (isMonitorRunning) return;
+    isMonitorRunning = true;
+
+    const t0 = Date.now();
+    console.log('▶️  (startup) Loan + LP monitor start');
+
+    try {
+      await monitorLoans();
+      await monitorLPs();
+    } catch (e) {
+      console.error('❌ (startup) Loan + LP monitor failed:', e);
+    }
+
+    const elapsed = Date.now() - t0;
+    console.log(`⏹️  (startup) Loan + LP monitor end (elapsed ${elapsed} ms)`);
+
+    isMonitorRunning = false;
+  })();
+  // ---------------------------------------------------
+
+  // Schedule recurring Loan + LP runs
   cron.schedule(CRON_SCHED, async () => {
     if (isMonitorRunning) {
       console.log(
@@ -76,6 +107,7 @@ async function onReady(client) {
     }
 
     isMonitorRunning = true;
+
     const t0 = Date.now();
     console.log('▶️  Loan + LP monitor start');
 
@@ -88,12 +120,36 @@ async function onReady(client) {
     }
 
     const elapsed = Date.now() - t0;
-    console.log(
-      `⏹️  Loan + LP monitor end (elapsed ${elapsed} ms)`
-    );
+    console.log(`⏹️  Loan + LP monitor end (elapsed ${elapsed} ms)`);
 
     isMonitorRunning = false;
   });
+
+  // ===== Daily heartbeat via node-cron =====
+
+  // ===== Daily heartbeat via node-cron =====
+
+  console.log(`[CRON] Using heartbeat schedule: ${HEARTBEAT_CRON} (America/Los_Angeles)`);
+
+  cron.schedule(
+    HEARTBEAT_CRON,        // e.g. "0 3 * * *"
+    async () => {
+      const t0 = Date.now();
+      console.log('▶️  Daily heartbeat start');
+
+      try {
+        await sendDailyHeartbeat(client);
+      } catch (e) {
+        console.error('❌ Daily heartbeat failed:', e);
+      }
+
+      const elapsed = Date.now() - t0;
+      console.log(`⏹️  Daily heartbeat end (elapsed ${elapsed} ms)`);
+    },
+    {
+      timezone: 'America/Los_Angeles'   // <-- IMPORTANT FIX
+    }
+  );
 }
 
 module.exports = {

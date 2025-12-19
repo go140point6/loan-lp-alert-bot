@@ -128,3 +128,8 @@ dist
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
+data/addresses.csv
+data/enosys_fxrp_loans_positions.csv
+data/enosys_lp_positions.csv
+data/enosys_wflr_loans_positions.csv
+data/myfiles/*
