@@ -136,3 +136,7 @@ data/myfiles/*
 data/lp_scan_state.json
 data/sparkdex_lp_positions.csv
 data/loan_scan_state.json
+data/lp_contracts.json.all
+data/lp_contracts.json.test
+data/xswap_lp_positions.csv
+dev/discover_lp_positions.js.working

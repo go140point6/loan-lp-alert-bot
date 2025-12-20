@@ -11,10 +11,7 @@ const loanConfig = require('../data/loan_contracts.json');
 
 const { getProviderForChain } = require('../utils/providers');
 const { readCsvRows } = require('../utils/csv');
-const {
-  handleLiquidationAlert,
-  handleRedemptionAlert,
-} = require('./alertEngine');
+const { handleLiquidationAlert, handleRedemptionAlert } = require('./alertEngine');
 
 // -----------------------------
 // Env helpers (strict)
@@ -33,19 +30,17 @@ function requireNumberEnv(name) {
   const raw = requireEnv(name);
   const v = Number(raw);
   if (!Number.isFinite(v)) {
-    console.error(
-      `[Config] Env var ${name} must be a finite number, got "${raw}"`
-    );
+    console.error(`[Config] Env var ${name} must be a finite number, got "${raw}"`);
     process.exit(1);
   }
   return v;
 }
 
 // -----------------------------
-// Global config from .env
+// Global config from .env (strict)
 // -----------------------------
 
-// Verbose flag
+// Verbose flag (strict)
 const MONITOR_VERBOSE_ENV = requireEnv('MONITOR_VERBOSE'); // '1' or '0'
 const MONITOR_VERBOSE_DEFAULT = MONITOR_VERBOSE_ENV === '1';
 
@@ -62,7 +57,7 @@ const REDEMP_NEUTRAL_ABS = requireNumberEnv('REDEMP_NEUTRAL_ABS');
 // CDP redemption trigger (USD)
 const CDP_REDEMPTION_TRIGGER = requireNumberEnv('CDP_REDEMPTION_TRIGGER');
 
-// CDP price mode and related config
+// CDP price mode and related config (strict)
 const CDP_PRICE_MODE_RAW = requireEnv('CDP_PRICE_MODE'); // 'POOL' or 'ENV'
 const CDP_PRICE_MODE = CDP_PRICE_MODE_RAW.toUpperCase();
 
@@ -78,20 +73,28 @@ let CDP_PRICE_USD_ENV = null;
 
 if (CDP_PRICE_MODE === 'POOL') {
   CDP_POOL_ADDR_FLR = requireEnv('CDP_POOL_ADDR_FLR');
-} else if (CDP_PRICE_MODE === 'ENV') {
+} else {
   CDP_PRICE_USD_ENV = requireNumberEnv('CDP_PRICE_USD');
 }
 
-// Alert tier thresholds
+// Global IR JSON source (strict, no defaults)
+const GLOBAL_IR_URL = requireEnv('GLOBAL_IR_URL');
+// Comma-separated branch keys, e.g. "FXRP,WFLR"
+const GLOBAL_IR_BRANCHES_RAW = requireEnv('GLOBAL_IR_BRANCHES');
+const GLOBAL_IR_BRANCHES = GLOBAL_IR_BRANCHES_RAW.split(',').map((s) => s.trim()).filter(Boolean);
+if (GLOBAL_IR_BRANCHES.length === 0) {
+  console.error('[Config] GLOBAL_IR_BRANCHES must contain at least one branch, e.g. "FXRP,WFLR"');
+  process.exit(1);
+}
+
+// Alert tier thresholds (strict)
 const LIQ_TIER_ORDER = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL', 'UNKNOWN'];
 const REDEMP_TIER_ORDER = ['LOW', 'NEUTRAL', 'MEDIUM', 'HIGH', 'UNKNOWN'];
 
 const LIQ_ALERT_MIN_TIER_RAW = requireEnv('LIQ_ALERT_MIN_TIER');
 if (!LIQ_TIER_ORDER.includes(LIQ_ALERT_MIN_TIER_RAW)) {
   console.error(
-    `[Config] LIQ_ALERT_MIN_TIER must be one of ${LIQ_TIER_ORDER.join(
-      ', '
-    )}, got "${LIQ_ALERT_MIN_TIER_RAW}"`
+    `[Config] LIQ_ALERT_MIN_TIER must be one of ${LIQ_TIER_ORDER.join(', ')}, got "${LIQ_ALERT_MIN_TIER_RAW}"`
   );
   process.exit(1);
 }
@@ -100,9 +103,7 @@ const LIQ_ALERT_MIN_TIER = LIQ_ALERT_MIN_TIER_RAW;
 const REDEMP_ALERT_MIN_TIER_RAW = requireEnv('REDEMP_ALERT_MIN_TIER');
 if (!REDEMP_TIER_ORDER.includes(REDEMP_ALERT_MIN_TIER_RAW)) {
   console.error(
-    `[Config] REDEMP_ALERT_MIN_TIER must be one of ${REDEMP_TIER_ORDER.join(
-      ', '
-    )}, got "${REDEMP_ALERT_MIN_TIER_RAW}"`
+    `[Config] REDEMP_ALERT_MIN_TIER must be one of ${REDEMP_TIER_ORDER.join(', ')}, got "${REDEMP_ALERT_MIN_TIER_RAW}"`
   );
   process.exit(1);
 }
@@ -137,7 +138,6 @@ function troveStatusToString(code) {
 
 // price helper for loans
 async function getOraclePrice(priceFeedContract) {
-  // 1) Try fetchPrice()
   try {
     const [price, isValid] = await priceFeedContract.fetchPrice();
     if (isValid && price && price.toString() !== '0') {
@@ -145,7 +145,6 @@ async function getOraclePrice(priceFeedContract) {
     }
   } catch (_) {}
 
-  // 2) Try lastGoodPrice()
   try {
     const last = await priceFeedContract.lastGoodPrice();
     if (last && last.toString() !== '0') {
@@ -153,10 +152,8 @@ async function getOraclePrice(priceFeedContract) {
     }
   } catch (_) {}
 
-  // 3) Try fetchRedemptionPrice()
   try {
-    const [redPrice, isValidRed] =
-      await priceFeedContract.fetchRedemptionPrice();
+    const [redPrice, isValidRed] = await priceFeedContract.fetchRedemptionPrice();
     if (isValidRed && redPrice && redPrice.toString() !== '0') {
       return { rawPrice: redPrice, source: 'fetchRedemptionPrice()' };
     }
@@ -165,78 +162,115 @@ async function getOraclePrice(priceFeedContract) {
   return { rawPrice: null, source: null };
 }
 
-// Reads a "global" reference interest rate (in percent) for a given protocol
-// from the environment. For example, for protocol "ENOSYS_LOAN_FXRP":
-//   GLOBAL_IR_ENOSYS_LOAN_FXRP=6.12  (meaning 6.12% p.a.)
-function getGlobalInterestRatePct(protocol) {
-  const key = `GLOBAL_IR_${protocol}`;
-  const raw = process.env[key];
-  if (!raw) return null;
+// -----------------------------
+// Global IR (JSON) - fetched every run
+// -----------------------------
 
-  const v = Number(raw);
-  if (!Number.isFinite(v)) return null;
-  return v; // in percent, same unit as interestPct
+async function fetchGlobalIrPctMap() {
+  // Node 18+ has global fetch; if you’re on older node, this will throw.
+  let res;
+  try {
+    res = await fetch(GLOBAL_IR_URL, {
+      method: 'GET',
+      headers: { 'accept': 'application/json' },
+    });
+  } catch (err) {
+    console.error(`[GlobalIR] Failed to fetch JSON from ${GLOBAL_IR_URL}:`, err.message);
+    return null;
+  }
+
+  if (!res.ok) {
+    console.error(`[GlobalIR] HTTP ${res.status} fetching ${GLOBAL_IR_URL}`);
+    return null;
+  }
+
+  let json;
+  try {
+    json = await res.json();
+  } catch (err) {
+    console.error('[GlobalIR] Failed to parse JSON:', err.message);
+    return null;
+  }
+
+  const branch = json && json.branch ? json.branch : null;
+  if (!branch || typeof branch !== 'object') {
+    console.error('[GlobalIR] JSON missing "branch" object; cannot read interest_rate_avg');
+    return null;
+  }
+
+  const out = {};
+  for (const key of GLOBAL_IR_BRANCHES) {
+    const node = branch[key];
+    const raw = node && node.interest_rate_avg != null ? node.interest_rate_avg : null;
+    if (raw == null) {
+      console.error(`[GlobalIR] Missing branch.${key}.interest_rate_avg in JSON`);
+      continue;
+    }
+
+    const v = Number(raw);
+    if (!Number.isFinite(v)) {
+      console.error(`[GlobalIR] Non-numeric interest_rate_avg for ${key}:`, raw);
+      continue;
+    }
+
+    // JSON provides 0.047... meaning 4.7% p.a.
+    out[key.toUpperCase()] = v * 100.0;
+  }
+
+  return out;
 }
 
-// Classify IR vs global reference (for redemption priority heuristic).
-// diff = interestPct - globalPct (in percentage points).
-//
-// Thresholds come from .env (no defaults):
-//
-//   REDEMP_BELOW_HIGH   => diff <= this  → tier HIGH
-//   REDEMP_BELOW_MED    => diff <= this  → tier MEDIUM
-//   REDEMP_NEUTRAL_ABS  => |diff| <= this → tier NEUTRAL
-//
-// Anything else → tier LOW (you are comfortably above global).
+// Determine which branch applies to a loan protocol string.
+// This is intentionally simple and explicit for your current setup.
+function inferBranchKeyFromProtocol(protocol) {
+  const p = (protocol || '').toUpperCase();
+  if (p.includes('FXRP')) return 'FXRP';
+  if (p.includes('WFLR')) return 'WFLR';
+  return null;
+}
+
+function getGlobalInterestRatePctFromMap(protocol, globalIrMap) {
+  if (!globalIrMap) return null;
+  const branchKey = inferBranchKeyFromProtocol(protocol);
+  if (!branchKey) return null;
+  const v = globalIrMap[branchKey];
+  return typeof v === 'number' && Number.isFinite(v) ? v : null;
+}
+
+// -----------------------------
+// Tier classifiers
+// -----------------------------
+
 function classifyRedemptionTier(interestPct, globalPct) {
   if (globalPct == null) {
     return {
       tier: 'UNKNOWN',
       diffPct: null,
-      diffLabel: 'no global IR configured',
+      diffLabel: 'no global IR available',
     };
   }
 
-  const diff = interestPct - globalPct; // positive => you're above global
+  const diff = interestPct - globalPct;
   const absDiff = Math.abs(diff);
 
-  const belowHigh = REDEMP_BELOW_HIGH;
-  const belowMed = REDEMP_BELOW_MED;
-  const neutralAbs = REDEMP_NEUTRAL_ABS;
-
   let tier;
-  if (Number.isFinite(belowHigh) && diff <= belowHigh) {
-    // Much lower than global => very high redemption priority
+  if (diff <= REDEMP_BELOW_HIGH) {
     tier = 'HIGH';
-  } else if (Number.isFinite(belowMed) && diff <= belowMed) {
-    // Slightly below global
+  } else if (diff <= REDEMP_BELOW_MED) {
     tier = 'MEDIUM';
-  } else if (Number.isFinite(neutralAbs) && absDiff <= neutralAbs) {
-    // Roughly in line with global
+  } else if (absDiff <= REDEMP_NEUTRAL_ABS) {
     tier = 'NEUTRAL';
   } else {
-    // Clearly above global => lower redemption priority
     tier = 'LOW';
   }
 
   return {
     tier,
     diffPct: diff,
-    diffLabel:
-      (diff >= 0 ? '+' : '') + diff.toFixed(2) + ' pp vs global',
+    diffLabel: (diff >= 0 ? '+' : '') + diff.toFixed(2) + ' pp vs global',
   };
 }
 
-// Classify liquidation risk based on how far current price is above the liquidation price.
-// bufferFrac = (price - liquidationPrice) / price
-//
-// Thresholds come from .env as FRACTIONS:
-//
-//   LIQ_BUFFER_CRIT  => buffer <= this → CRITICAL
-//   LIQ_BUFFER_HIGH  => buffer <= this → HIGH
-//   LIQ_BUFFER_WARN  => buffer <= this → MEDIUM
-//
-// Above LIQ_BUFFER_WARN → LOW
 function classifyLiquidationRisk(bufferFrac) {
   if (bufferFrac == null || !Number.isFinite(bufferFrac)) {
     return {
@@ -246,70 +280,46 @@ function classifyLiquidationRisk(bufferFrac) {
     };
   }
 
-  const warn = LIQ_BUFFER_WARN;
-  const high = LIQ_BUFFER_HIGH;
-  const crit = LIQ_BUFFER_CRIT;
-
   let tier;
-  if (Number.isFinite(crit) && bufferFrac <= crit) {
-    tier = 'CRITICAL';
-  } else if (Number.isFinite(high) && bufferFrac <= high) {
-    tier = 'HIGH';
-  } else if (Number.isFinite(warn) && bufferFrac <= warn) {
-    tier = 'MEDIUM';
-  } else {
-    tier = 'LOW';
-  }
+  if (bufferFrac <= LIQ_BUFFER_CRIT) tier = 'CRITICAL';
+  else if (bufferFrac <= LIQ_BUFFER_HIGH) tier = 'HIGH';
+  else if (bufferFrac <= LIQ_BUFFER_WARN) tier = 'MEDIUM';
+  else tier = 'LOW';
 
-  const bufferPct = bufferFrac * 100;
   return {
     tier,
     bufferFrac,
-    bufferLabel: `${bufferPct.toFixed(2)}% above liquidation`,
+    bufferLabel: `${(bufferFrac * 100).toFixed(2)}% above liquidation`,
   };
 }
 
-// Reads CDP price (in USD) from the environment (ENV mode only)
+// -----------------------------
+// CDP price (POOL or ENV, strict)
+// -----------------------------
+
 function getCdpPriceFromEnv() {
-  if (CDP_PRICE_MODE !== 'ENV') {
-    return null;
-  }
-  return CDP_PRICE_USD_ENV; // already validated as a number
+  if (CDP_PRICE_MODE !== 'ENV') return null;
+  return CDP_PRICE_USD_ENV;
 }
 
-// On-chain CDP price from Enosys V3 CDP/USD₮0 pool on Flare (Uniswap v3).
 async function getCdpPriceFromPool() {
-  if (CDP_PRICE_MODE !== 'POOL') {
-    return null;
-  }
-
-  const poolAddr = CDP_POOL_ADDR_FLR;
+  if (CDP_PRICE_MODE !== 'POOL') return null;
 
   let provider;
   try {
     provider = getProviderForChain('FLR', loanConfig.chains);
   } catch (err) {
-    console.error(
-      '[CDP] Failed to get FLR provider for CDP price:',
-      err.message
-    );
+    console.error('[CDP] Failed to get FLR provider for CDP price:', err.message);
     return null;
   }
 
-  const pool = new ethers.Contract(poolAddr, uniswapV3PoolAbi, provider);
+  const pool = new ethers.Contract(CDP_POOL_ADDR_FLR, uniswapV3PoolAbi, provider);
 
   let token0, token1, slot0;
   try {
-    [token0, token1, slot0] = await Promise.all([
-      pool.token0(),
-      pool.token1(),
-      pool.slot0(),
-    ]);
+    [token0, token1, slot0] = await Promise.all([pool.token0(), pool.token1(), pool.slot0()]);
   } catch (err) {
-    console.error(
-      '[CDP] Failed to read pool token0/token1/slot0:',
-      err.message
-    );
+    console.error('[CDP] Failed to read pool token0/token1/slot0:', err.message);
     return null;
   }
 
@@ -320,17 +330,8 @@ async function getCdpPriceFromPool() {
     return null;
   }
 
-  // Fetch metadata to infer orientation + decimals
-  const token0Contract = new ethers.Contract(
-    token0,
-    erc20MetadataAbi,
-    provider
-  );
-  const token1Contract = new ethers.Contract(
-    token1,
-    erc20MetadataAbi,
-    provider
-  );
+  const token0Contract = new ethers.Contract(token0, erc20MetadataAbi, provider);
+  const token1Contract = new ethers.Contract(token1, erc20MetadataAbi, provider);
 
   let sym0 = 'TOKEN0';
   let sym1 = 'TOKEN1';
@@ -344,118 +345,71 @@ async function getCdpPriceFromPool() {
       token0Contract.decimals().catch(() => 18),
       token1Contract.decimals().catch(() => 18),
     ]);
-  } catch (_) {
-    // fall back to defaults above
-  }
+  } catch (_) {}
 
   const sym0U = (sym0 || '').toUpperCase();
   const sym1U = (sym1 || '').toUpperCase();
 
-  // Uniswap v3: price1/0 = 1.0001^tick * 10^(dec0 - dec1)
   const price1Over0NoDecimals = Math.pow(1.0001, tick);
   const decimalFactor = Math.pow(10, Number(dec0) - Number(dec1));
   const price1Over0 = price1Over0NoDecimals * decimalFactor;
 
-  let priceCdpUsdT0 = null;
+  let priceCdpUsd = null;
 
   if (sym0U.includes('CDP')) {
-    // token0 = CDP, token1 = USD₮0 → price1Over0 = USD₮0 per CDP
-    priceCdpUsdT0 = price1Over0;
+    priceCdpUsd = price1Over0;
   } else if (sym1U.includes('CDP')) {
-    // token1 = CDP, token0 = USD₮0 → price1Over0 = CDP per USD₮0, so invert
     if (price1Over0 === 0) {
       console.error('[CDP] price1Over0 is zero; cannot invert.');
       return null;
     }
-    priceCdpUsdT0 = 1 / price1Over0;
+    priceCdpUsd = 1 / price1Over0;
   } else {
-    console.error(
-      `[CDP] Could not identify CDP token by symbol (token0=${sym0}, token1=${sym1}).`
-    );
+    console.error(`[CDP] Could not identify CDP token by symbol (token0=${sym0}, token1=${sym1}).`);
     return null;
   }
 
-  if (!Number.isFinite(priceCdpUsdT0) || priceCdpUsdT0 <= 0) {
-    console.error(
-      '[CDP] Computed non-finite/negative CDP price:',
-      priceCdpUsdT0
-    );
+  if (!Number.isFinite(priceCdpUsd) || priceCdpUsd <= 0) {
+    console.error('[CDP] Computed non-finite/negative CDP price:', priceCdpUsd);
     return null;
   }
 
-  return priceCdpUsdT0;
+  return priceCdpUsd;
 }
 
-// Wrapper: choose source (POOL or ENV).
 async function getCdpPrice() {
-  if (CDP_PRICE_MODE === 'ENV') {
-    return getCdpPriceFromEnv();
-  }
-  if (CDP_PRICE_MODE === 'POOL') {
-    return getCdpPriceFromPool();
-  }
-  // Should not happen due to validation
-  return null;
+  return CDP_PRICE_MODE === 'POOL' ? getCdpPriceFromPool() : getCdpPriceFromEnv();
 }
 
-// Classify whether redemption is "economically live" based on CDP price.
-// If CDP < trigger, redemptions become attractive.
 function classifyCdpRedemptionState(cdpPrice) {
   const trigger = CDP_REDEMPTION_TRIGGER;
 
   if (cdpPrice == null) {
-    return {
-      state: 'UNKNOWN',
-      trigger,
-      diff: null,
-      label: 'no CDP price available',
-    };
+    return { state: 'UNKNOWN', trigger, diff: null, label: 'no CDP price available' };
   }
 
   const diff = cdpPrice - trigger;
-  let state;
-
-  if (cdpPrice < trigger) {
-    state = 'ACTIVE'; // profitable / attractive for arbitrage
-  } else {
-    state = 'DORMANT'; // not profitable; redemptions unlikely
-  }
+  const state = cdpPrice < trigger ? 'ACTIVE' : 'DORMANT';
 
   const label =
-    diff >= 0
-      ? `above trigger by ${diff.toFixed(4)}`
-      : `below trigger by ${Math.abs(diff).toFixed(4)}`;
+    diff >= 0 ? `above trigger by ${diff.toFixed(4)}` : `below trigger by ${Math.abs(diff).toFixed(4)}`;
 
-  return {
-    state, // ACTIVE / DORMANT / UNKNOWN
-    trigger, // threshold used
-    diff, // raw difference
-    label, // human string
-  };
+  return { state, trigger, diff, label };
 }
 
 // -----------------------------
 // Build a single loan summary object (no logging)
 // -----------------------------
 
-async function summarizeLoanPosition(provider, chainId, protocol, row) {
+async function summarizeLoanPosition(provider, chainId, protocol, row, globalIrMap) {
   const { contract, owner, troveId } = row;
 
   const troveNFT = new ethers.Contract(contract, troveNftAbi, provider);
-
   const troveManagerAddr = await troveNFT.troveManager();
   const collTokenAddr = await troveNFT.collToken();
 
-  const troveManager = new ethers.Contract(
-    troveManagerAddr,
-    troveManagerAbi,
-    provider
-  );
-  const collToken = new ethers.Contract(
-    collTokenAddr,
-    erc20MetadataAbi,
-    provider
-  );
+  const troveManager = new ethers.Contract(troveManagerAddr, troveManagerAbi, provider);
+  const collToken = new ethers.Contract(collTokenAddr, erc20MetadataAbi, provider);
 
   const collDecimals = await collToken.decimals();
   const collSymbol = await collToken.symbol();
@@ -468,29 +422,20 @@ async function summarizeLoanPosition(provider, chainId, protocol, row) {
   const accruedInterest = latest.accruedInterest;
   const annualInterestRate = latest.annualInterestRate;
 
-  const DEBT_DECIMALS = 18;
-  const PRICE_DECIMALS = 18;
-
-  const debtNorm = Number(ethers.formatUnits(entireDebt, DEBT_DECIMALS));
+  const debtNorm = Number(ethers.formatUnits(entireDebt, 18));
   const collNorm = Number(ethers.formatUnits(entireColl, collDecimals));
-  const accruedInterestNorm = Number(
-    ethers.formatUnits(accruedInterest, DEBT_DECIMALS)
-  );
-  const interestPct =
-    Number(ethers.formatUnits(annualInterestRate, 18)) * 100.0;
+  const accruedInterestNorm = Number(ethers.formatUnits(accruedInterest, 18));
+  const interestPct = Number(ethers.formatUnits(annualInterestRate, 18)) * 100.0;
   const statusStr = troveStatusToString(statusCode);
 
-  // Redemption-related (IR-based) against an .env "global" reference
-  const globalIrPct = getGlobalInterestRatePct(protocol);
+  const globalIrPct = getGlobalInterestRatePctFromMap(protocol, globalIrMap);
   const redClass = classifyRedemptionTier(interestPct, globalIrPct);
 
-  // Price + risk metrics
   const priceFeedAddr = await troveManager.priceFeed();
   const priceFeed = new ethers.Contract(priceFeedAddr, priceFeedAbi, provider);
 
   const { rawPrice, source } = await getOraclePrice(priceFeed);
 
-  // Base summary object
   const base = {
     protocol,
     chainId,
@@ -503,11 +448,10 @@ async function summarizeLoanPosition(provider, chainId, protocol, row) {
     debtAmount: debtNorm,
     accruedInterest: accruedInterestNorm,
 
-    // Interest rate (borrow cost)
-    interestPct, // your trove's interest %
-    globalIrPct, // pulled from .env via getGlobalInterestRatePct()
-    redemptionTier: redClass.tier, // LOW / MEDIUM / HIGH / UNKNOWN
-    redemptionDiffPct: redClass.diffPct, // how far you are from global IR
+    interestPct,
+    globalIrPct,
+    redemptionTier: redClass.tier,
+    redemptionDiffPct: redClass.diffPct,
 
     status: statusStr,
     priceSource: source || null,
@@ -520,19 +464,15 @@ async function summarizeLoanPosition(provider, chainId, protocol, row) {
     mcr: null,
   };
 
-  if (!rawPrice) {
-    // No price => can't compute LTV / liquidation
-    return base;
-  }
+  if (!rawPrice) return base;
 
-  const priceNorm = Number(ethers.formatUnits(rawPrice, PRICE_DECIMALS));
+  const priceNorm = Number(ethers.formatUnits(rawPrice, 18));
   const MCR = await troveManager.MCR();
   const mcrNorm = Number(ethers.formatUnits(MCR, 18));
 
   const collValue = collNorm * priceNorm;
   const ltv = collValue > 0 ? debtNorm / collValue : 0;
-  const liquidationPrice =
-    collNorm > 0 ? (debtNorm * mcrNorm) / collNorm : 0;
+  const liquidationPrice = collNorm > 0 ? (debtNorm * mcrNorm) / collNorm : 0;
 
   let icrRaw;
   try {
@@ -540,11 +480,9 @@ async function summarizeLoanPosition(provider, chainId, protocol, row) {
   } catch {
     icrRaw = null;
   }
-  const icrNorm =
-    icrRaw != null ? Number(ethers.formatUnits(icrRaw, 18)) : null;
+  const icrNorm = icrRaw != null ? Number(ethers.formatUnits(icrRaw, 18)) : null;
 
-  const bufferFrac =
-    priceNorm > 0 ? (priceNorm - liquidationPrice) / priceNorm : null;
+  const bufferFrac = priceNorm > 0 ? (priceNorm - liquidationPrice) / priceNorm : null;
   const liqClass = classifyLiquidationRisk(bufferFrac);
 
   return {
@@ -565,18 +503,31 @@ async function summarizeLoanPosition(provider, chainId, protocol, row) {
 // Core loan description (logging)
 // -----------------------------
 
-async function describeLoanPosition(
-  provider,
-  chainId,
-  protocol,
-  row,
-  options = {}
-) {
-  const {
-    verbose = MONITOR_VERBOSE_DEFAULT,
-    cdpState = null,
-  } = options;
+async function describeLoanPosition(provider, chainId, protocol, row, options = {}) {
+  const { verbose = MONITOR_VERBOSE_DEFAULT, cdpState = null, globalIrMap = null } = options;
   const { contract, owner, troveId } = row;
+
+  const troveNFT = new ethers.Contract(contract, troveNftAbi, provider);
+  const troveManagerAddr = await troveNFT.troveManager();
+  const collTokenAddr = await troveNFT.collToken();
+
+  const troveManager = new ethers.Contract(troveManagerAddr, troveManagerAbi, provider);
+  const collToken = new ethers.Contract(collTokenAddr, erc20MetadataAbi, provider);
+
+  const collDecimals = await collToken.decimals();
+  const collSymbol = await collToken.symbol();
+
+  const latest = await troveManager.getLatestTroveData(troveId);
+  const statusCode = await troveManager.getTroveStatus(troveId);
+
+  const debtNorm = Number(ethers.formatUnits(latest.entireDebt, 18));
+  const collNorm = Number(ethers.formatUnits(latest.entireColl, collDecimals));
+  const accruedInterestNorm = Number(ethers.formatUnits(latest.accruedInterest, 18));
+  const interestPct = Number(ethers.formatUnits(latest.annualInterestRate, 18)) * 100.0;
+  const statusStr = troveStatusToString(statusCode);
+
+  const globalIrPct = getGlobalInterestRatePctFromMap(protocol, globalIrMap);
+  const redClass = classifyRedemptionTier(interestPct, globalIrPct);
 
   if (verbose) {
     console.log('========================================');
@@ -586,57 +537,8 @@ async function describeLoanPosition(
     console.log(`Chain:    ${chainId}`);
     console.log(`NFT:      ${contract}`);
     console.log(`Trove ID: ${troveId}`);
-  }
-
-  const troveNFT = new ethers.Contract(contract, troveNftAbi, provider);
-
-  const troveManagerAddr = await troveNFT.troveManager();
-  const collTokenAddr = await troveNFT.collToken();
-
-  if (verbose) {
     console.log(`TroveManager:  ${troveManagerAddr}`);
     console.log(`Collateral:    ${collTokenAddr}`);
-  }
-
-  const troveManager = new ethers.Contract(
-    troveManagerAddr,
-    troveManagerAbi,
-    provider
-  );
-  const collToken = new ethers.Contract(
-    collTokenAddr,
-    erc20MetadataAbi,
-    provider
-  );
-
-  const collDecimals = await collToken.decimals();
-  const collSymbol = await collToken.symbol();
-
-  const latest = await troveManager.getLatestTroveData(troveId);
-  const statusCode = await troveManager.getTroveStatus(troveId);
-
-  const entireDebt = latest.entireDebt;
-  const entireColl = latest.entireColl;
-  const accruedInterest = latest.accruedInterest;
-  const annualInterestRate = latest.annualInterestRate;
-
-  const DEBT_DECIMALS = 18;
-  const PRICE_DECIMALS = 18;
-
-  const debtNorm = Number(ethers.formatUnits(entireDebt, DEBT_DECIMALS));
-  const collNorm = Number(ethers.formatUnits(entireColl, collDecimals));
-  const accruedInterestNorm = Number(
-    ethers.formatUnits(accruedInterest, DEBT_DECIMALS)
-  );
-  const interestPct =
-    Number(ethers.formatUnits(annualInterestRate, 18)) * 100.0;
-  const statusStr = troveStatusToString(statusCode);
-
-  // --- Redemption-related metrics (based on IR vs a global reference) ---
-  const globalIrPct = getGlobalInterestRatePct(protocol);
-  const redClass = classifyRedemptionTier(interestPct, globalIrPct);
-
-  if (verbose) {
     console.log('');
     console.log('  --- Core Trove Data ---');
     console.log(`  Collateral:        ${collNorm.toFixed(6)} ${collSymbol}`);
@@ -646,135 +548,34 @@ async function describeLoanPosition(
     console.log(`  Status:            ${statusStr}`);
   }
 
-  // Price feed + risk metrics
   const priceFeedAddr = await troveManager.priceFeed();
-  if (verbose) {
-    console.log('');
-    console.log(`  PriceFeed:         ${priceFeedAddr}`);
-  }
-
   const priceFeed = new ethers.Contract(priceFeedAddr, priceFeedAbi, provider);
-
   const { rawPrice, source } = await getOraclePrice(priceFeed);
 
-  if (verbose) {
-    console.log('');
-    console.log('  --- Risk Metrics ---');
-  }
-
   if (!rawPrice) {
-    if (verbose) {
-      console.log(
-        '  ⚠️  No price available; cannot compute LTV/liquidation price.'
-      );
-      console.log('========================================');
-      console.log('');
-    }
-    // Summary log even if we have no price
-    console.log(
-      `${protocol} is ${statusStr} but no price is available to compute LTV / liquidation price.`
-    );
+    console.log(`${protocol} is ${statusStr} but no price is available to compute LTV / liquidation price.`);
     return;
   }
 
-  const priceNorm = Number(ethers.formatUnits(rawPrice, PRICE_DECIMALS));
-
-  if (verbose) {
-    console.log(`  Price source:      ${source}`);
-    console.log(`  Raw price:         ${rawPrice.toString()}`);
-    console.log(`  Price (normalized):${priceNorm}`);
-  }
-
+  const priceNorm = Number(ethers.formatUnits(rawPrice, 18));
   const MCR = await troveManager.MCR();
-  const mcrNorm = Number(ethers.formatUnits(MCR, 18)); // ~1.1 etc.
+  const mcrNorm = Number(ethers.formatUnits(MCR, 18));
 
-  // Collateral value and LTV
-  const collValue = collNorm * priceNorm; // in "price units"
+  const collValue = collNorm * priceNorm;
   const ltv = collValue > 0 ? debtNorm / collValue : 0;
-
-  const liquidationPrice =
-    collNorm > 0 ? (debtNorm * mcrNorm) / collNorm : 0;
-
-  const bufferFrac =
-    priceNorm > 0 ? (priceNorm - liquidationPrice) / priceNorm : null;
+  const liquidationPrice = collNorm > 0 ? (debtNorm * mcrNorm) / collNorm : 0;
+  const bufferFrac = priceNorm > 0 ? (priceNorm - liquidationPrice) / priceNorm : null;
 
   const liqClass = classifyLiquidationRisk(bufferFrac);
 
-  let icrRaw;
-  try {
-    icrRaw = await troveManager.getCurrentICR(troveId, rawPrice);
-  } catch {
-    icrRaw = null;
-  }
-  const icrNorm =
-    icrRaw != null ? Number(ethers.formatUnits(icrRaw, 18)) : null;
-
-  if (verbose) {
-    console.log(`  Collateral value:  ${collValue.toFixed(6)} (price units)`);
-    console.log(`  MCR (approx):      ${(mcrNorm * 100).toFixed(2)} %`);
-    if (icrNorm != null) {
-      console.log(`  Current ICR:       ${(icrNorm * 100).toFixed(2)} %`);
-    } else {
-      console.log('  Current ICR:       (could not fetch)');
-    }
-    console.log(`  LTV (approx):      ${(ltv * 100).toFixed(2)} %`);
-    console.log(
-      `  Liquidation price: ${liquidationPrice.toFixed(
-        8
-      )} (same units as price)`
-    );
-
-    console.log('');
-    console.log('  --- Redemption Profile (IR-based) ---');
-    console.log(`  Interest rate:     ${interestPct.toFixed(2)} % p.a.`);
-    if (globalIrPct != null) {
-      console.log(`  Global IR (env):   ${globalIrPct.toFixed(2)} % p.a.`);
-      console.log(`  Delta:             ${redClass.diffLabel}`);
-      console.log(
-        `  Est. tier:         ${redClass.tier} redemption priority`
-      );
-    } else {
-      console.log(
-        '  Global IR (env):   not set (GLOBAL_IR_' + protocol + ' not found)'
-      );
-    }
-
-    console.log('');
-    console.log('  --- Liquidation Profile ---');
-    console.log(`  Price:            ${priceNorm.toFixed(5)}`);
-    console.log(`  Liq. price:       ${liquidationPrice.toFixed(5)}`);
-    if (bufferFrac != null) {
-      const bufferPct = bufferFrac * 100;
-      console.log(`  Buffer:           ${bufferPct.toFixed(2)}% above liq.`);
-      console.log(`  Liq. tier:        ${liqClass.tier}`);
-    } else {
-      console.log('  Buffer:           (not available)');
-    }
-
-    console.log('========================================');
-    console.log('');
-  }
-
-  // === Compact summary log ===
+  // Compact summary log
   const ltvPct = ltv * 100;
   console.log(
-    `${protocol} is ${statusStr} with LTV of ${ltvPct.toFixed(
-      2
-    )}%. Current price ${priceNorm.toFixed(
-      5
-    )} with liquidation price ${liquidationPrice.toFixed(5)}.`
+    `${protocol} is ${statusStr} with LTV of ${ltvPct.toFixed(2)}%. Current price ${priceNorm.toFixed(5)} with liquidation price ${liquidationPrice.toFixed(5)}.`
   );
 
-  // -----------------------------
-  // Alert engine hooks
-  // -----------------------------
-
-  // Liquidation alert (based on liq tier)
-  const liqAlertActive = isTierAtLeast(
-    liqClass.tier,
-    LIQ_ALERT_MIN_TIER,
-    LIQ_TIER_ORDER
-  );
+  // Alerts
+  const liqAlertActive = isTierAtLeast(liqClass.tier, LIQ_ALERT_MIN_TIER, LIQ_TIER_ORDER);
 
   handleLiquidationAlert({
     protocol,
@@ -788,16 +589,9 @@ async function describeLoanPosition(
     liquidationBufferFrac: bufferFrac,
   });
 
-  // Redemption alert (IR tier + CDP ACTIVE)
   const cdpIsActive = cdpState && cdpState.state === 'ACTIVE';
-
   const redAlertActive =
-    cdpIsActive &&
-    isTierAtLeast(
-      redClass.tier,
-      REDEMP_ALERT_MIN_TIER,
-      REDEMP_TIER_ORDER
-    );
+    cdpIsActive && isTierAtLeast(redClass.tier, REDEMP_ALERT_MIN_TIER, REDEMP_TIER_ORDER);
 
   handleRedemptionAlert({
     protocol,
@@ -813,31 +607,44 @@ async function describeLoanPosition(
   if (!verbose) {
     if (bufferFrac != null) {
       console.log(
-        `${protocol} liquidation buffer ${(
-          bufferFrac * 100
-        ).toFixed(2)}% (tier ${liqClass.tier}).`
+        `${protocol} liquidation buffer ${(bufferFrac * 100).toFixed(2)}% (tier ${liqClass.tier}).`
       );
     } else {
-      console.log(
-        `${protocol} liquidation buffer unknown (no price / liq data).`
-      );
+      console.log(`${protocol} liquidation buffer unknown (no price / liq data).`);
     }
 
     if (globalIrPct != null) {
       console.log(
-        `${protocol} IR ${interestPct.toFixed(
-          2
-        )}% vs global ${globalIrPct.toFixed(
-          2
-        )}% (${redClass.diffLabel}, tier ${redClass.tier}).`
+        `${protocol} IR ${interestPct.toFixed(2)}% vs global ${globalIrPct.toFixed(2)}% (${redClass.diffLabel}, tier ${redClass.tier}).`
       );
     } else {
-      console.log(
-        `${protocol} IR ${interestPct.toFixed(
-          2
-        )}% (no GLOBAL_IR_${protocol} set).`
-      );
+      console.log(`${protocol} IR ${interestPct.toFixed(2)}% (global IR unavailable).`);
     }
+  } else {
+    console.log('');
+    console.log('  --- Redemption Profile (IR-based) ---');
+    console.log(`  Interest rate:     ${interestPct.toFixed(2)} % p.a.`);
+    if (globalIrPct != null) {
+      console.log(`  Global IR (json):  ${globalIrPct.toFixed(2)} % p.a.`);
+      console.log(`  Delta:             ${redClass.diffLabel}`);
+      console.log(`  Est. tier:         ${redClass.tier} redemption priority`);
+    } else {
+      console.log('  Global IR (json):  (unavailable)');
+    }
+
+    console.log('');
+    console.log('  --- Liquidation Profile ---');
+    console.log(`  Price source:     ${source}`);
+    console.log(`  Price:            ${priceNorm.toFixed(5)}`);
+    console.log(`  Liq. price:       ${liquidationPrice.toFixed(5)}`);
+    if (bufferFrac != null) {
+      console.log(`  Buffer:           ${(bufferFrac * 100).toFixed(2)}% above liq.`);
+      console.log(`  Liq. tier:        ${liqClass.tier}`);
+    } else {
+      console.log('  Buffer:           (not available)');
+    }
+    console.log('========================================');
+    console.log('');
   }
 }
 
@@ -848,53 +655,65 @@ async function describeLoanPosition(
 async function monitorLoans(options = {}) {
   const verbose = options.verbose ?? MONITOR_VERBOSE_DEFAULT;
 
+  // Fetch CDP context
   const cdpPrice = await getCdpPrice();
   const cdpState = classifyCdpRedemptionState(cdpPrice);
 
+  // Fetch global IR map EVERY RUN
+  const globalIrMap = await fetchGlobalIrPctMap();
+
+  // --- Log CDP + Global IR under it (both verbose and non-verbose) ---
   if (verbose) {
     console.log('');
-    console.log('=== CDP Redemption Context ===');
+    console.log('=== CDP + Global IR Context ===');
     if (cdpPrice == null) {
       console.log('  CDP price:        (not available)');
-      console.log(
-        `  Trigger:          ${cdpState.trigger.toFixed(
-          4
-        )} USD (CDP_REDEMPTION_TRIGGER)`
-      );
+      console.log(`  Trigger:          ${cdpState.trigger.toFixed(4)} USD (CDP_REDEMPTION_TRIGGER)`);
       console.log('  State:            UNKNOWN (no CDP price available)');
     } else {
       console.log(`  CDP price:        ${cdpPrice.toFixed(4)} USD`);
-      console.log(
-        `  Trigger:          ${cdpState.trigger.toFixed(
-          4
-        )} USD (CDP_REDEMPTION_TRIGGER)`
-      );
-      console.log(
-        `  State:            ${cdpState.state} (${cdpState.label})`
-      );
+      console.log(`  Trigger:          ${cdpState.trigger.toFixed(4)} USD (CDP_REDEMPTION_TRIGGER)`);
+      console.log(`  State:            ${cdpState.state} (${cdpState.label})`);
     }
-    console.log('==============================');
+
+    if (!globalIrMap) {
+      console.log(`  Global IR (json):  (FAILED to fetch/parse: ${GLOBAL_IR_URL})`);
+    } else {
+      for (const k of GLOBAL_IR_BRANCHES) {
+        const v = globalIrMap[k.toUpperCase()];
+        if (typeof v === 'number') {
+          console.log(`  Global IR ${k}:     ${v.toFixed(4)} % p.a.`);
+        } else {
+          console.log(`  Global IR ${k}:     (missing/invalid in JSON)`);
+        }
+      }
+    }
+
+    console.log('===============================');
     console.log('');
   } else {
-    // Compact, single-line version for normal runs
-    if (cdpPrice == null) {
-      console.log(
-        `CDP price unknown; redemption state UNKNOWN (trigger ${cdpState.trigger.toFixed(
-          4
-        )}).`
-      );
+    // Compact single-line version
+    const cdpLine =
+      cdpPrice == null
+        ? `CDP price unknown; redemption state UNKNOWN (trigger ${cdpState.trigger.toFixed(4)}).`
+        : `CDP price ${cdpPrice.toFixed(4)} USD; redemption state ${cdpState.state} (trigger ${cdpState.trigger.toFixed(4)}, ${cdpState.label}).`;
+
+    let irLine = '';
+    if (!globalIrMap) {
+      irLine = ` Global IR: FAILED (${GLOBAL_IR_URL}).`;
     } else {
-      console.log(
-        `CDP price ${cdpPrice.toFixed(
-          4
-        )} USD; redemption state ${cdpState.state} (trigger ${cdpState.trigger.toFixed(
-          4
-        )}, ${cdpState.label}).`
-      );
+      const parts = [];
+      for (const k of GLOBAL_IR_BRANCHES) {
+        const v = globalIrMap[k.toUpperCase()];
+        parts.push(typeof v === 'number' ? `${k}=${v.toFixed(4)}%` : `${k}=n/a`);
+      }
+      irLine = ` Global IR: ${parts.join(', ')}.`;
     }
+
+    console.log(cdpLine + irLine);
   }
 
-  console.log(''); // keep a small spacer before the per-loan logs
+  console.log(''); // spacer before per-loan logs
 
   for (const [chainId, chainCfg] of Object.entries(loanConfig.chains || {})) {
     let provider;
@@ -920,9 +739,7 @@ async function monitorLoans(options = {}) {
           continue;
         }
 
-        if (chain !== chainId) {
-          continue;
-        }
+        if (chain !== chainId) continue;
 
         try {
           await describeLoanPosition(
@@ -930,7 +747,7 @@ async function monitorLoans(options = {}) {
             chainId,
             c.protocol || c.key || 'UNKNOWN_PROTOCOL',
             row,
-            { verbose, cdpState }
+            { verbose, cdpState, globalIrMap }
           );
         } catch (err) {
           console.error(
@@ -947,18 +764,18 @@ async function monitorLoans(options = {}) {
 // Public API: getLoanSummaries
 // -----------------------------
 
-// Return structured summaries for all monitored loans (no logging)
 async function getLoanSummaries() {
   const summaries = [];
+
+  // Fetch global IR map once for the summaries call (no logging here)
+  const globalIrMap = await fetchGlobalIrPctMap();
 
   for (const [chainId, chainCfg] of Object.entries(loanConfig.chains || {})) {
     let provider;
     try {
       provider = getProviderForChain(chainId, loanConfig.chains);
     } catch (err) {
-      console.error(
-        `[Loans] Skipping chain ${chainId} in getLoanSummaries: ${err.message}`
-      );
+      console.error(`[Loans] Skipping chain ${chainId} in getLoanSummaries: ${err.message}`);
       continue;
     }
 
@@ -977,27 +794,15 @@ async function getLoanSummaries() {
           continue;
         }
 
-        if (chain !== chainId) {
-          continue;
-        }
+        if (chain !== chainId) continue;
 
         const protocol = c.protocol || c.key || 'UNKNOWN_PROTOCOL';
 
         try {
-          const summary = await summarizeLoanPosition(
-            provider,
-            chainId,
-            protocol,
-            row
-          );
-          if (summary) {
-            summaries.push(summary);
-          }
+          const summary = await summarizeLoanPosition(provider, chainId, protocol, row, globalIrMap);
+          if (summary) summaries.push(summary);
         } catch (err) {
-          console.error(
-            `[Loans] Failed to build summary for troveId=${troveId} on ${chainId}:`,
-            err.message
-          );
+          console.error(`[Loans] Failed to build summary for troveId=${troveId} on ${chainId}:`, err.message);
         }
       }
     }
@@ -1012,4 +817,3 @@ module.exports = {
   getCdpPrice,
   classifyCdpRedemptionState,
 };
-

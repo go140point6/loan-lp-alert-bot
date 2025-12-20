@@ -16,6 +16,18 @@
           "csvFile": "sparkdex_lp_positions.csv"
         }
       ]
+    },
+    "XDC": {
+      "rpcEnvKey": "XDC_MAINNET",
+      "contracts": [
+        {
+          "key": "xswap_lp",
+          "protocol": "XSWAP_LP",
+          "contract": "0x6D22833398772D7Da9A7cBCFdEE98342cCE154D4",
+          "csvFile": "xswap_lp_positions.csv",
+          "envStartKey": "XSWAP_LP_START_BLOCK"
+        }
+      ]
     }
   }
 }
