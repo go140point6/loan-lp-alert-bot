@@ -26,6 +26,93 @@ if (!HEARTBEAT_CRON) {
   process.exit(1);
 }
 
+// Heartbeat timezone (from .env) — no code defaults
+// e.g. HEARTBEAT_TZ="America/Los_Angeles"
+const HEARTBEAT_TZ = process.env.HEARTBEAT_TZ;
+if (!HEARTBEAT_TZ) {
+  console.error('Missing HEARTBEAT_TZ in .env');
+  process.exit(1);
+}
+
+// -----------------------------
+// Discord DM chunking helpers
+// -----------------------------
+
+const DISCORD_MSG_MAX = 2000;
+// headroom to avoid edge-case overflow
+const DISCORD_SAFE_MAX = 1900;
+
+function splitIntoDiscordMessages(text, maxLen = DISCORD_SAFE_MAX) {
+  if (!text) return [];
+
+  const lines = text.replace(/\r\n/g, '\n').split('\n');
+  const chunks = [];
+
+  let buf = '';
+
+  for (const line of lines) {
+    const addLen = (buf.length === 0 ? 0 : 1) + line.length;
+
+    // If a single line is too long, hard-split it
+    if (line.length > maxLen) {
+      if (buf.length) {
+        chunks.push(buf);
+        buf = '';
+      }
+      for (let i = 0; i < line.length; i += maxLen) {
+        chunks.push(line.slice(i, i + maxLen));
+      }
+      continue;
+    }
+
+    // If adding this line would exceed max, flush buffer
+    if (buf.length + addLen > maxLen) {
+      if (buf.length) chunks.push(buf);
+      buf = line;
+      continue;
+    }
+
+    buf = buf.length ? `${buf}\n${line}` : line;
+  }
+
+  if (buf.length) chunks.push(buf);
+
+  return chunks.map((c) =>
+    c.length > DISCORD_MSG_MAX ? c.slice(0, DISCORD_MSG_MAX) : c
+  );
+}
+
+async function sendLongDM(user, content) {
+  const chunks = splitIntoDiscordMessages(content);
+
+  for (let i = 0; i < chunks.length; i++) {
+    const prefix = chunks.length > 1 ? `(${i + 1}/${chunks.length}) ` : '';
+    await user.send({ content: prefix + chunks[i] });
+  }
+}
+
+// Wrap sendDailyHeartbeat(client) so it can return a string OR send itself.
+// If it returns a string, we chunk+send here.
+// If it already sends, we do nothing extra.
+async function sendDailyHeartbeatChunked(client) {
+  const res = await sendDailyHeartbeat(client);
+
+  // If your heartbeat module returns content, send it chunked here.
+  if (typeof res === 'string' && res.trim().length > 0) {
+    const myId = process.env.MY_DISCORD_ID;
+    if (!myId) {
+      console.error('Missing MY_DISCORD_ID in .env');
+      process.exit(1);
+    }
+
+    const user = await client.users.fetch(myId);
+    const header = `📌 Daily Heartbeat — ${new Date().toISOString()}\n`;
+    await sendLongDM(user, header + res);
+  }
+
+  // Otherwise assume sendDailyHeartbeat handled delivery (and might now internally chunk).
+}
+
 async function onReady(client) {
   console.log(`Ready! Logged in as ${client.user.tag}`);
 
@@ -127,18 +214,18 @@ async function onReady(client) {
 
   // ===== Daily heartbeat via node-cron =====
 
-  // ===== Daily heartbeat via node-cron =====
-
-  console.log(`[CRON] Using heartbeat schedule: ${HEARTBEAT_CRON} (America/Los_Angeles)`);
+  console.log(
+    `[CRON] Using heartbeat schedule: ${HEARTBEAT_CRON} (${HEARTBEAT_TZ})`
+  );
 
   cron.schedule(
-    HEARTBEAT_CRON,        // e.g. "0 3 * * *"
+    HEARTBEAT_CRON,
     async () => {
       const t0 = Date.now();
       console.log('▶️  Daily heartbeat start');
 
       try {
-        await sendDailyHeartbeat(client);
+        await sendDailyHeartbeatChunked(client);
       } catch (e) {
         console.error('❌ Daily heartbeat failed:', e);
       }
@@ -147,7 +234,7 @@ async function onReady(client) {
       console.log(`⏹️  Daily heartbeat end (elapsed ${elapsed} ms)`);
     },
     {
-      timezone: 'America/Los_Angeles'   // <-- IMPORTANT FIX
+      timezone: HEARTBEAT_TZ,
     }
   );
 }

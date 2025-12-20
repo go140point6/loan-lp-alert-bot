@@ -1,15 +1,90 @@
 const { getLoanSummaries } = require('./loanMonitor');
 const { getLpSummaries } = require('./lpMonitor');
 
+// -----------------------------
+// Env helpers (strict)
+// -----------------------------
+function requireEnv(name) {
+  const v = process.env[name];
+  if (v === undefined || v === null || v === '') {
+    console.error(`[Config] Missing required env var ${name}`);
+    process.exit(1);
+  }
+  return v;
+}
+
+// -----------------------------
+// Discord message chunking
+// -----------------------------
+const DISCORD_MSG_MAX = 2000;
+// keep headroom for safety (markdown, odd unicode, etc.)
+const DISCORD_SAFE_MAX = 1900;
+
+function splitIntoDiscordMessages(text, maxLen = DISCORD_SAFE_MAX) {
+  if (!text) return [];
+
+  const lines = text.replace(/\r\n/g, '\n').split('\n');
+  const chunks = [];
+
+  let buf = '';
+
+  for (const line of lines) {
+    // If a single line is too long, hard-split it
+    if (line.length > maxLen) {
+      if (buf.length) {
+        chunks.push(buf);
+        buf = '';
+      }
+      for (let i = 0; i < line.length; i += maxLen) {
+        chunks.push(line.slice(i, i + maxLen));
+      }
+      continue;
+    }
+
+    const addLen = (buf.length === 0 ? 0 : 1) + line.length;
+
+    // If adding this line would exceed max, flush buffer
+    if (buf.length + addLen > maxLen) {
+      if (buf.length) chunks.push(buf);
+      buf = line;
+      continue;
+    }
+
+    buf = buf.length ? `${buf}\n${line}` : line;
+  }
+
+  if (buf.length) chunks.push(buf);
+
+  // absolute safety clamp
+  return chunks.map((c) =>
+    c.length > DISCORD_MSG_MAX ? c.slice(0, DISCORD_MSG_MAX) : c
+  );
+}
+
+async function sendLongDM(user, content) {
+  const chunks = splitIntoDiscordMessages(content);
+
+  for (let i = 0; i < chunks.length; i++) {
+    const prefix = chunks.length > 1 ? `(${i + 1}/${chunks.length}) ` : '';
+    await user.send({ content: prefix + chunks[i] });
+  }
+}
+
+// -----------------------------
+// Formatting helpers
+// -----------------------------
+
 // Build a concise human-readable summary line for a single loan
 function formatLoanLine(s) {
   const parts = [];
 
-  parts.push(
-    `• **${s.protocol}** (${s.chainId}) — status **${s.status}**`
-  );
+  parts.push(`• **${s.protocol}** (${s.chainId}) — status **${s.status}**`);
 
-  if (s.hasPrice && typeof s.price === 'number' && typeof s.liquidationPrice === 'number') {
+  if (
+    s.hasPrice &&
+    typeof s.price === 'number' &&
+    typeof s.liquidationPrice === 'number'
+  ) {
     const ltvText =
       typeof s.ltvPct === 'number' ? `${s.ltvPct.toFixed(2)}%` : 'n/a';
     const bufferText =
@@ -25,9 +100,7 @@ function formatLoanLine(s) {
       }**)`
     );
   } else {
-    parts.push(
-      '   Price / liq: *(unavailable; cannot compute LTV / buffer)*'
-    );
+    parts.push('   Price / liq: *(unavailable; cannot compute LTV / buffer)*');
   }
 
   if (typeof s.interestPct === 'number') {
@@ -48,14 +121,20 @@ function formatLoanLine(s) {
 function formatLpLine(s) {
   const parts = [];
 
-  const pair = s.pairLabel || `${s.token0Symbol || s.token0}-${s.token1Symbol || s.token1}`;
+  const pair =
+    s.pairLabel ||
+    `${s.token0Symbol || s.token0}-${s.token1Symbol || s.token1}`;
 
   parts.push(
     `• **${s.protocol}** ${pair} (${s.chainId}) — status **${s.status}**, range **${s.rangeStatus}**`
   );
 
   if (s.lpRangeTier && s.lpRangeTier !== 'UNKNOWN') {
-    parts.push(`   Range tier **${s.lpRangeTier}**${s.lpRangeLabel ? ` (${s.lpRangeLabel})` : ''}`);
+    parts.push(
+      `   Range tier **${s.lpRangeTier}**${
+        s.lpRangeLabel ? ` (${s.lpRangeLabel})` : ''
+      }`
+    );
   }
 
   if (
@@ -63,9 +142,7 @@ function formatLpLine(s) {
     typeof s.tickUpper === 'number' &&
     typeof s.currentTick === 'number'
   ) {
-    parts.push(
-      `   Tick [${s.tickLower}, ${s.tickUpper}) current **${s.currentTick}**`
-    );
+    parts.push(`   Tick [${s.tickLower}, ${s.tickUpper}) current **${s.currentTick}**`);
   }
 
   if (s.liquidity) {
@@ -76,13 +153,8 @@ function formatLpLine(s) {
 }
 
 async function sendDailyHeartbeat(client) {
-  const userId = process.env.MY_DISCORD_ID;
-  if (!userId) {
-    console.error(
-      '[Heartbeat] MY_DISCORD_ID not set; cannot send daily heartbeat DM.'
-    );
-    return;
-  }
+  // strict: must exist
+  const userId = requireEnv('MY_DISCORD_ID');
 
   let user;
   try {
@@ -106,8 +178,7 @@ async function sendDailyHeartbeat(client) {
     return;
   }
 
-  const now = new Date();
-  const nowIso = now.toISOString();
+  const nowIso = new Date().toISOString();
 
   const lines = [];
   lines.push('📊 **24h DeFi Heartbeat**');
@@ -152,7 +223,7 @@ async function sendDailyHeartbeat(client) {
   const msg = lines.join('\n');
 
   try {
-    await user.send(msg);
+    await sendLongDM(user, msg);
     console.log('[Heartbeat] Sent daily heartbeat DM.');
   } catch (err) {
     console.error('[Heartbeat] Failed to send daily heartbeat DM:', err.message);
